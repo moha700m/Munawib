@@ -106,8 +106,10 @@ const hospCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b =
 async function route(req, env) {
   const url = new URL(req.url); const p = url.pathname.replace(/\/+$/, '') || '/'; const m = req.method;
   if (m === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
-  const body = ['POST', 'PUT', 'PATCH'].includes(m) ? await req.json().catch(() => ({})) : {};
+  const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(m) ? await req.json().catch(() => ({})) : {};
   const DB = env.DB;
+  if (p === '/privacy') return new Response(PRIVACY_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  if (p === '/support' || p === '/marketing') return new Response(SUPPORT_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
   if (p === '/admin' || p === '/admin/index.html') return new Response(typeof ADMIN_HTML === 'string' ? ADMIN_HTML : 'admin not bundled', { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-frame-options': 'DENY' } });
   if (p === '/' || p === '/health') return json({ ok: true, service: 'munawib-api', apns: !!env.APNS_KEY });
 
@@ -172,6 +174,22 @@ async function route(req, env) {
     await DB.prepare('UPDATE users SET name=COALESCE(?,name),phone=COALESCE(?,phone),photo=COALESCE(?,photo),reminder_minutes=COALESCE(?,reminder_minutes) WHERE id=?')
       .bind(body.name ?? null, body.phone ?? null, body.photo ?? null, body.reminder_minutes ?? null, me.id).run();
     return json({ user: pubUser(await DB.prepare('SELECT * FROM users WHERE id=?').bind(me.id).first()) });
+  }
+  if (p === '/me' && m === 'DELETE') {
+    need(await verifyPw(body.password || '', me.pw_hash), 401, 'invalid credentials');
+    const admins = (await DB.prepare("SELECT count(*) n FROM users WHERE hospital_id=? AND role='admin'").bind(H).first()).n;
+    if (me.role === 'admin' && admins <= 1) {
+      const t = ['attendance', 'events', 'leave_requests', 'swap_requests', 'announcements', 'notification_log', 'rosters', 'departments', 'audit_log'];
+      await DB.batch([...t.map(x => DB.prepare(`DELETE FROM ${x} WHERE hospital_id=?`).bind(H)),
+        DB.prepare('DELETE FROM device_tokens WHERE user_id IN (SELECT id FROM users WHERE hospital_id=?)').bind(H),
+        DB.prepare('DELETE FROM users WHERE hospital_id=?').bind(H), DB.prepare('DELETE FROM hospitals WHERE id=?').bind(H)]);
+      return json({ ok: true, deleted: 'hospital' });
+    }
+    await DB.batch([DB.prepare('DELETE FROM device_tokens WHERE user_id=?').bind(me.id), DB.prepare('DELETE FROM attendance WHERE user_id=?').bind(me.id),
+      DB.prepare('DELETE FROM leave_requests WHERE user_id=?').bind(me.id), DB.prepare('DELETE FROM swap_requests WHERE from_user=? OR to_user=?').bind(me.id, me.id),
+      DB.prepare('DELETE FROM notification_log WHERE user_id=?').bind(me.id), DB.prepare('DELETE FROM users WHERE id=?').bind(me.id)]);
+    await audit(env, me, me.department_id, 'account.delete', me.name);
+    return json({ ok: true, deleted: 'user' });
   }
   if (p === '/bootstrap' && m === 'GET') {
     const q = (s, ...a) => DB.prepare(s).bind(...a).all().then(r => r.results);

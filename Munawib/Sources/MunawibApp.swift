@@ -5,6 +5,12 @@ struct MunawibApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = AppStore()
     @State private var session = Session.shared
+    init() {
+        if ProcessInfo.processInfo.arguments.contains("-demo") {
+            Session.shared.useOffline()
+            let s = AppStore(); s.data = AppStore.seed(); _store = State(initialValue: s)
+        }
+    }
     var body: some Scene {
         WindowGroup {
             Group {

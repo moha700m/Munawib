@@ -90,6 +90,11 @@ final class Session {
         try? FileManager.default.removeItem(at: Self.cacheURL)
     }
 
+    func deleteAccount(password: String) async throws {
+        try await APIClient.shared.call("DELETE", "me", ["password": password])
+        logout()
+    }
+
     // MARK: Sync
     @MainActor
     func refresh() async throws {

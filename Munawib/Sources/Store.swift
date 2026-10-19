@@ -152,9 +152,10 @@ final class AppStore {
     static func seed() -> AppData {
         var d = AppData()
         let dept = "تمريض الأطفال"
-        d.employees = [Employee(name: "DEMO HEAD NURSE", title: "Head Nurse", employeeNumber: "9001", department: dept)]
-        for i in 2...6 {
-            d.employees.append(Employee(name: String(format: "DEMO NURSE %02d", i), title: "Nurse", employeeNumber: "900\(i)", department: dept))
+        d.employees = [Employee(name: "نورة القحطاني", title: "رئيسة تمريض", employeeNumber: "9001", department: dept, linked: true)]
+        let names = ["سارة العتيبي", "ريم الشهري", "هند الغامدي", "منى الدوسري", "عبير الحربي", "لمى المطيري", "فاطمة الزهراني"]
+        for (i, n) in names.enumerated() {
+            d.employees.append(Employee(name: n, title: "ممرضة", employeeNumber: "\(9002 + i)", department: dept, linked: i % 3 != 2))
         }
         let cal = Calendar.current
         let now = Date()
@@ -166,7 +167,15 @@ final class AppStore {
             for day in 1...days { codes["\(day)"] = idx == 0 ? ((day % 7 == 5 || day % 7 == 6) ? .rest : .day) : pattern[(day + idx) % pattern.count] }
             r.entries.append(RosterEntry(employeeID: e.id, codes: codes))
         }
+        r.status = .approved
+        r.source = "جدول القسم المعتمد"
         d.rosters = [r]
+        d.settings.loggedInEmployeeNumber = "9001"
+        for (i, e) in d.employees.enumerated() {
+            for back in 1...4 { d.hours.append(HourLog(employeeID: e.id, date: cal.date(byAdding: .day, value: -back, to: now) ?? now, kind: back == 4 && i % 2 == 0 ? .overtime : .actual, hours: 12)) }
+        }
+        d.sendLog = [SendLog(date: now.addingTimeInterval(-3600), title: "اعتماد وإرسال للفريق", detail: "جدول الشهر — \(dept)"),
+                     SendLog(date: now.addingTimeInterval(-7200), title: "إعلان", detail: "اجتماع القسم الأسبوعي")]
         func future(_ days: Int, _ h: Int) -> Date {
             let base = cal.date(byAdding: .day, value: days, to: now) ?? now
             return cal.date(bySettingHour: h, minute: 0, second: 0, of: base) ?? base

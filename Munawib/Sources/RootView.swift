@@ -44,7 +44,8 @@ struct RootView: View {
             }
         }
         .task {
-            if Session.shared.me?.role == "head_nurse" { screen = .dashboard } else if Session.shared.online && !Session.shared.isManager { screen = .myShifts }
+            if let s = UserDefaults.standard.string(forKey: "screen"), let sc = Screen(rawValue: s) { screen = sc }
+            else if Session.shared.me?.role == "head_nurse" { screen = .dashboard } else if Session.shared.online && !Session.shared.isManager { screen = .myShifts }
             await store.rescheduleNotifications()
         }
     }

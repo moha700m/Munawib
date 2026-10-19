@@ -1,0 +1,51 @@
+name: Screenshots
+on:
+  workflow_dispatch:
+jobs:
+  shots:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: brew install xcodegen && xcodegen generate
+      - name: Pick 6.9" simulator
+        run: |
+          xcrun simctl list devices available
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          for pref in ['iPhone 17 Pro Max','iPhone 16 Pro Max','iPhone 16 Plus','iPhone 17 Plus']:
+              for rt,devs in sorted(d.items(), reverse=True):
+                  for x in devs:
+                      if x['name']==pref and 'iOS' in rt: print(x['udid']); sys.exit()
+          ")
+          echo "UDID=$UDID" >> $GITHUB_ENV; echo "using $UDID"
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project Munawib.xcodeproj -scheme Munawib -configuration Debug -destination "id=$UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -30
+      - name: Capture
+        run: |
+          set -x
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl ui "$UDID" appearance light || true
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/Munawib.app
+          mkdir -p shots
+          i=1
+          for s in dashboard roster myShifts reports alerts; do
+            xcrun simctl terminate "$UDID" com.mohlab.munawib || true
+            xcrun simctl launch "$UDID" com.mohlab.munawib -demo -screen $s -AppleLanguages "(ar)" -AppleLocale ar_SA
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "shots/0${i}_$s.png"
+            i=$((i+1))
+          done
+          sips -g pixelWidth -g pixelHeight shots/*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/

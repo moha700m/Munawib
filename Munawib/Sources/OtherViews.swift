@@ -295,6 +295,7 @@ struct SettingsView: View {
                 }
             ProfileCard()
             NotificationTestPanel()
+            if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
             Text("مِناوب 2.1 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
