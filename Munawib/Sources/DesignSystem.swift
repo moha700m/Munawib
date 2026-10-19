@@ -30,10 +30,13 @@ struct DSField: View {
     let placeholder: String
     @Binding var text: String
     var ltr: Bool = false
+    var numeric: Bool = false
+    var autofocus: Bool = false
     var body: some View {
         HStack(spacing: DS.s) {
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22).accessibilityHidden(true)
-            TextField(placeholder, text: $text)
+            if numeric { NumericField(placeholder: placeholder, text: $text, focusOnAppear: autofocus).frame(minHeight: 44) }
+            else { TextField(placeholder, text: $text) }
             if !text.isEmpty {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
                     .accessibilityLabel("مسح")

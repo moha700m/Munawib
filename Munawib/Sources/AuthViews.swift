@@ -207,13 +207,13 @@ struct SignupWizard: View {
                         DSField(icon: "square.grid.2x2", placeholder: "القسم الأول (مثال: الطوارئ)", text: $department)
                         Text("رئيسة التمريض (اختياري)").font(.footnote.weight(.semibold)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                         DSField(icon: "person.badge.shield.checkmark", placeholder: "اسم رئيسة التمريض", text: $hnName)
-                        DSField(icon: "number", placeholder: "رقمها الوظيفي", text: $hnNumber, ltr: true).keyboardType(.asciiCapableNumberPad).digitsOnly($hnNumber)
+                        DSField(icon: "number", placeholder: "رقمها الوظيفي", text: $hnNumber, ltr: true, numeric: true)
                     }
                     Button("التالي") { withAnimation(.snappy) { step = 2 } }.buttonStyle(PrimaryButtonStyle()).disabled(hospital.trimmingCharacters(in: .whitespaces).isEmpty)
                 } else {
                     VStack(spacing: DS.m) {
                         DSField(icon: "person", placeholder: "اسمك", text: $name).textContentType(.name)
-                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true).keyboardType(.asciiCapableNumberPad).digitsOnly($number).focused($numberFocused)
+                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true, numeric: true, autofocus: Demo.auth == "keyboard")
                         DSField(icon: "envelope", placeholder: "البريد الإلكتروني", text: $email, ltr: true)
                             .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
                         DSSecureField(placeholder: "كلمة المرور (8 أحرف على الأقل)", text: $password)
@@ -234,7 +234,7 @@ struct SignupWizard: View {
         .onAppear {
             if Demo.auth == "signup" { hospital = "مستشفى النور التخصصي"; department = "الطوارئ"; hnName = "نورة العتيبي"; hnNumber = "5002" }
             if Demo.auth == "signup2" || Demo.auth == "keyboard" { step = 2; name = "د. سارة القحطاني"; email = "admin@alnoor.sa"; password = "Demo-Pass-2026" }
-            if Demo.auth == "keyboard" { number = "50"; Task { try? await Task.sleep(for: .seconds(1)); numberFocused = true } }
+            if Demo.auth == "keyboard" { number = "50" }
         }
     }
 

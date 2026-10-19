@@ -20,7 +20,7 @@ struct EmployeeForm: View {
             Form {
                 TextField("الاسم", text: $name)
                 TextField("المسمى الوظيفي", text: $title)
-                TextField("الرقم الوظيفي", text: $number).keyboardType(.asciiCapableNumberPad).digitsOnly($number)
+                NumericField(placeholder: "الرقم الوظيفي", text: $number)
                 TextField("الجوال", text: $phone).keyboardType(.phonePad)
                 if Session.shared.online && Session.shared.me?.isHead == true {
                     Picker("الصلاحية", selection: $role) {

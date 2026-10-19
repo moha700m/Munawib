@@ -206,10 +206,7 @@ struct PortalView: View {
             } else {
                 Text("تسجيل دخول الموظف").font(.title.bold())
                 Text("أدخل رقمك الوظيفي المسجّل لدى القسم.").font(.footnote).foregroundStyle(.secondary)
-                TextField("الرقم الوظيفي", text: $number)
-                    .keyboardType(.asciiCapableNumberPad)
-                    .digitsOnly($number)
-                    .multilineTextAlignment(.center)
+                NumericField(placeholder: "الرقم الوظيفي", text: $number).frame(minHeight: 24)
                     .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
                 Button {
                     if let i = store.data.employees.firstIndex(where: { $0.employeeNumber.asciiDigits == number.asciiDigits }) {
@@ -251,6 +248,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var store = store
         VStack(spacing: 16) {
+            if Session.shared.online || Session.shared.demoInfo { HospitalInfoCard() }
             VStack(alignment: .leading, spacing: 12) {
                 Text("المستشفى").font(.title3.bold())
                 TextField("اسم المستشفى", text: $store.data.settings.hospital)
@@ -294,7 +292,6 @@ struct SettingsView: View {
                     Button("إعادة تعيين", role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
                 }
             ProfileCard()
-            if Session.shared.online || Session.shared.demoInfo { HospitalInfoCard() }
             NotificationTestPanel()
             if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
