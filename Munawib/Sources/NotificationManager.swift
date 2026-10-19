@@ -1,0 +1,63 @@
+import Foundation
+import UserNotifications
+
+final class NotificationManager {
+    static let shared = NotificationManager()
+    private let center = UNUserNotificationCenter.current()
+
+    func requestPermission() async -> Bool {
+        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+    }
+
+    func status() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+
+    func notifyNow(title: String, body: String) async {
+        let c = UNMutableNotificationContent()
+        c.title = title; c.body = body; c.sound = .default
+        let trig = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: trig))
+    }
+
+    /// iOS keeps max 64 pending local notifications; schedule the nearest ones.
+    @MainActor
+    func reschedule(store: AppStore) async {
+        center.removeAllPendingNotificationRequests()
+        let cal = Calendar.current
+        let s = store.data.settings
+        let now = Date()
+        var items: [(Date, String, String)] = []
+        let me = s.loggedInEmployeeNumber
+        for roster in store.data.rosters where roster.status == .approved {
+            for entry in roster.entries {
+                guard let emp = store.employee(entry.employeeID) else { continue }
+                if let me, emp.employeeNumber != me { continue }
+                for (dayKey, code) in entry.codes where code == .day || code == .night {
+                    guard let day = Int(dayKey) else { continue }
+                    var comps = DateComponents(year: roster.year, month: roster.month, day: day)
+                    comps.hour = code == .day ? s.dayStartHour : s.nightStartHour
+                    guard let start = cal.date(from: comps) else { continue }
+                    let fire = start.addingTimeInterval(TimeInterval(-s.reminderMinutesBefore * 60))
+                    if fire > now {
+                        let who = me == nil ? "\(emp.name): " : ""
+                        items.append((fire, "تذكير بالمناوبة", "\(who)الشفت ال\(code.title) يبدأ الساعة \(comps.hour!):00 (\(s.shiftLength) ساعة)"))
+                    }
+                }
+            }
+        }
+        for ev in store.data.events {
+            let fire = ev.date.addingTimeInterval(-3600)
+            if fire > now { items.append((fire, "فعالية قادمة", "\(ev.title) — \(ev.location)")) }
+        }
+        items.sort { $0.0 < $1.0 }
+        for (date, title, body) in items.prefix(60) {
+            let c = UNMutableNotificationContent()
+            c.title = title; c.body = body; c.sound = .default
+            let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            let trig = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+            try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: trig))
+        }
+        store.log("جدولة التنبيهات", "تمت جدولة \(min(items.count, 60)) تنبيه على هذا الجهاز")
+    }
+}
