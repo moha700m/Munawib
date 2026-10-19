@@ -11,3 +11,5 @@ CREATE TABLE IF NOT EXISTS notification_log(id TEXT PRIMARY KEY,hospital_id TEXT
 CREATE TABLE IF NOT EXISTS device_tokens(token TEXT PRIMARY KEY,user_id TEXT,env TEXT DEFAULT 'production',updated_at INTEGER);
 CREATE TABLE IF NOT EXISTS reminders_sent(key TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS audit_log(id TEXT PRIMARY KEY,hospital_id TEXT,department_id TEXT,user_id TEXT,user_name TEXT,action TEXT,detail TEXT,created_at INTEGER);
+
+CREATE TABLE IF NOT EXISTS login_attempts(k TEXT PRIMARY KEY,fails INTEGER,locked_until INTEGER,updated_at INTEGER);

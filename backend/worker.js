@@ -6,7 +6,7 @@ const fromB64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, 
 const uid = () => crypto.randomUUID();
 const now = () => Date.now();
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' } });
-class HttpError extends Error { constructor(s, m) { super(m); this.status = s; } }
+class HttpError extends Error { constructor(s, m, retry) { super(m); this.status = s; this.retry = retry; } }
 const need = (c, s, m) => { if (!c) throw new HttpError(s, m); };
 
 async function hashPw(pw, saltB64) {
@@ -95,7 +95,24 @@ async function staffIds(env, hospitalId, deptId, roles) {
 // ---------- helpers ----------
 const inviteCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
 const pubUser = (u) => u && ({ id: u.id, hospital_id: u.hospital_id, department_id: u.department_id, email: u.email, name: u.name, title: u.title, employee_number: u.employee_number, role: u.role, phone: u.phone, photo: u.photo, reminder_minutes: u.reminder_minutes, invite_code: u.pw_hash ? null : u.invite_code, joined: !!u.pw_hash });
-async function session(env, u) { return { token: await signJWT(env, { sub: u.id, hid: u.hospital_id, role: u.role }), user: pubUser(u) }; }
+async function session(env, u) { return { token: await signJWT(env, { sub: u.id, hid: u.hospital_id, role: u.role, tv: u.token_version || 1, iat: Math.floor(now() / 1000) }), user: pubUser(u) }; }
+// ---- brute-force protection: 5 failures -> 15 min lockout per key ----
+const LOCK_MAX = 5, LOCK_MS = 15 * 60 * 1000;
+async function lockCheck(env, keys) {
+  for (const k of keys) {
+    const r = await env.DB.prepare('SELECT fails,locked_until FROM login_attempts WHERE k=?').bind(k).first();
+    if (r && r.locked_until && r.locked_until > now()) throw new HttpError(429, 'too many attempts', Math.ceil((r.locked_until - now()) / 60000));
+  }
+}
+async function lockFail(env, keys) {
+  for (const k of keys) {
+    const r = await env.DB.prepare('SELECT fails,locked_until FROM login_attempts WHERE k=?').bind(k).first();
+    const max = k.startsWith('id:') ? LOCK_MAX : 30;
+    const fails = (r && (!r.locked_until || r.locked_until <= now()) ? r.fails : 0) + 1;
+    await env.DB.prepare('INSERT OR REPLACE INTO login_attempts(k,fails,locked_until,updated_at) VALUES(?,?,?,?)').bind(k, fails >= max ? 0 : fails, fails >= max ? now() + LOCK_MS : null, now()).run();
+  }
+}
+async function lockClear(env, keys) { for (const k of keys) await env.DB.prepare('DELETE FROM login_attempts WHERE k=?').bind(k).run(); }
 const isMgr = (me) => ['admin', 'head_nurse', 'supervisor'].includes(me.role);
 const ROLES = ['employee', 'supervisor', 'head_nurse', 'admin'];
 async function audit(env, me, deptId, action, detail) {
@@ -136,25 +153,33 @@ async function route(req, env) {
   }
   if (p === '/auth/login' && m === 'POST') {
     let u;
+    const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'ip';
+    const idKey = 'id:' + String(body.identifier || body.email || body.employee_number || '').trim().toLowerCase() + '@' + String(body.hospital_code || body.hospitalCode || '').trim().toUpperCase();
+    const LK = [idKey, 'ip:' + ip];
+    await lockCheck(env, LK);
+    need(String(body.password || '').length > 0, 400, 'missing fields');
     const ident = String(body.identifier || '').trim();
     if (ident && !body.employee_number && !body.email) { if (ident.includes('@')) body.email = ident; else body.employee_number = ident; }
     if (body.employee_number || body.employeeNumber) {
       const hc = String(body.hospital_code || body.hospitalCode || body.hospital_id || '').trim();
       const h = await DB.prepare('SELECT id FROM hospitals WHERE code=? OR id=?').bind(hc.toUpperCase(), hc).first();
-      need(h, 404, 'hospital not found');
+      if (!h) { await lockFail(env, LK); need(false, 404, 'hospital not found'); }
       u = await DB.prepare('SELECT * FROM users WHERE hospital_id=? AND employee_number=?').bind(h.id, String(body.employee_number || body.employeeNumber).trim()).first();
     } else u = await DB.prepare('SELECT * FROM users WHERE email=?').bind((body.email || '').toLowerCase()).first();
-    need(u, 404, 'account not found');
+    if (!u) { await lockFail(env, LK); need(false, 404, 'account not found'); }
     need(u.pw_hash, 403, 'account not activated');
-    need(await verifyPw(body.password || '', u.pw_hash), 401, 'wrong password');
+    if (!(await verifyPw(String(body.password), u.pw_hash))) { await lockFail(env, LK); need(false, 401, 'wrong password'); }
+    await lockClear(env, [idKey]);
     return json(await session(env, u));
   }
   if (p === '/auth/join' && m === 'POST') {
     const { code, password } = body; const email = body.email || null; need(code && password && password.length >= 8, 400, 'missing fields');
+    const JK = ['join:' + (req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'ip')];
+    await lockCheck(env, JK);
     const u = await DB.prepare('SELECT * FROM users WHERE invite_code=? AND pw_hash IS NULL').bind(code.toUpperCase().trim()).first();
-    need(u, 404, 'invalid invite');
+    if (!u) { await lockFail(env, JK); need(false, 404, 'invalid invite'); }
     if (email) need(!(await DB.prepare('SELECT 1 FROM users WHERE email=? AND id<>?').bind(email.toLowerCase(), u.id).first()), 409, 'email exists');
-    await DB.prepare('UPDATE users SET email=?,pw_hash=? WHERE id=?').bind(email ? email.toLowerCase() : null, await hashPw(password), u.id).run();
+    await DB.prepare('UPDATE users SET email=?,pw_hash=?,invite_code=NULL,token_version=COALESCE(token_version,1)+1 WHERE id=?').bind(email ? email.toLowerCase() : null, await hashPw(password), u.id).run();
     return json(await session(env, await DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first()));
   }
   if (p.startsWith('/invite/') && m === 'GET') {
@@ -166,6 +191,7 @@ async function route(req, env) {
   const claims = await verifyJWT(env, (req.headers.get('authorization') || '').replace(/^Bearer /i, ''));
   need(claims, 401, 'unauthorized');
   const me = await DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first(); need(me, 401, 'unauthorized');
+  need(me.pw_hash && claims.tv && claims.tv === (me.token_version || 1), 401, 'session expired');
   const H = me.hospital_id;
   const mgr = () => need(isMgr(me), 403, 'forbidden');
   const inDept = (d) => me.role === 'admin' || (d && d === me.department_id);
@@ -250,7 +276,7 @@ async function route(req, env) {
     const d = await userDept(seg[1]); headOf(d); need(seg[1] !== me.id, 400, 'cannot reset self');
     const t = await DB.prepare('SELECT role,name FROM users WHERE id=?').bind(seg[1]).first(); need(t && (me.role === 'admin' || t.role !== 'admin'), 403, 'forbidden');
     const code = inviteCode();
-    await DB.prepare('UPDATE users SET pw_hash=NULL,invite_code=? WHERE id=?').bind(code, seg[1]).run();
+    await DB.prepare('UPDATE users SET pw_hash=NULL,invite_code=?,token_version=COALESCE(token_version,1)+1 WHERE id=?').bind(code, seg[1]).run();
     await DB.prepare('DELETE FROM device_tokens WHERE user_id=?').bind(seg[1]).run();
     await audit(env, me, d, 'employee.reset', t.name);
     return json({ invite_code: code, invite_link: `munawib://join?code=${code}` });
@@ -393,7 +419,7 @@ async function shiftReminders(env) {
 export default {
   async fetch(req, env) {
     try { return await route(req, env); }
-    catch (e) { return json({ error: e.message || 'error' }, e.status || 500); }
+    catch (e) { if (!e.status) console.error(e); return json(e.status ? { error: e.message, ...(e.retry ? { retry_minutes: e.retry } : {}) } : { error: 'server error' }, e.status || 500); }
   },
   async scheduled(_ev, env, ctx) { ctx.waitUntil(shiftReminders(env)); },
 };

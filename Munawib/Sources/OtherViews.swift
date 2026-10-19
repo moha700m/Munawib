@@ -177,69 +177,6 @@ struct AlertsView: View {
     }
 }
 
-struct PortalView: View {
-    @Environment(AppStore.self) private var store
-    @State private var number = ""
-    @State private var error: String?
-
-    var body: some View {
-        let me = store.data.employees.first { $0.employeeNumber == store.data.settings.loggedInEmployeeNumber }
-        VStack(spacing: 16) {
-            HStack {
-                IconTile(symbol: "waveform.path.ecg")
-                VStack(alignment: .leading) {
-                    Text("مِناوب").font(.title2.bold())
-                    Text("بوابة موظفي المستشفى").font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            IconTile(symbol: "person.2", size: 64)
-            if let me {
-                Text("مرحبًا \(me.name)").font(.title2.bold())
-                Text("ستصلك تنبيهات شفتاتك فقط على هذا الجهاز.").font(.footnote).foregroundStyle(.secondary)
-                myShifts(me)
-                Button("تسجيل خروج") {
-                    store.data.settings.loggedInEmployeeNumber = nil
-                    Task { await store.rescheduleNotifications() }
-                }
-                .buttonStyle(OutlineButtonStyle())
-            } else {
-                Text("تسجيل دخول الموظف").font(.title.bold())
-                Text("أدخل رقمك الوظيفي المسجّل لدى القسم.").font(.footnote).foregroundStyle(.secondary)
-                NumericField(placeholder: "الرقم الوظيفي", text: $number).frame(minHeight: 24)
-                    .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
-                Button {
-                    if let i = store.data.employees.firstIndex(where: { $0.employeeNumber.asciiDigits == number.asciiDigits }) {
-                        store.data.employees[i].linked = true
-                        store.data.settings.loggedInEmployeeNumber = store.data.employees[i].employeeNumber
-                        error = nil
-                        Task { await store.rescheduleNotifications() }
-                    } else { error = "الرقم غير موجود" }
-                } label: { Label("دخول", systemImage: "paperplane") }
-                .buttonStyle(PrimaryButtonStyle())
-                if let error { Text(error).foregroundStyle(.red).font(.footnote) }
-                Label("تحتاج إلى رقم وظيفي مسجّل لدى القسم.", systemImage: "checkmark.shield")
-                    .font(.caption).foregroundStyle(Theme.primary)
-            }
-        }
-        .card()
-    }
-
-    private func myShifts(_ me: Employee) -> some View {
-        let days = (1...store.daysInMonth).map { ($0, store.code(for: me.id, day: $0)) }.filter { $0.1 != .empty }
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 6) {
-            ForEach(days, id: \.0) { d in
-                VStack(spacing: 2) {
-                    Text("\(d.0)").font(.caption2).foregroundStyle(.secondary)
-                    Text(d.1.label).font(.caption.bold()).foregroundStyle(d.1.color)
-                }
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .background(d.1.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-            }
-        }
-    }
-}
-
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @State private var newDept = ""

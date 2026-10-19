@@ -45,7 +45,7 @@ struct MunawibApp: App {
 }
 
 enum Screen: String, CaseIterable, Identifiable {
-    case dashboard, home, roster, myShifts, requests, announcements, reports, hours, employees, events, alerts, portal, settings
+    case dashboard, home, roster, myShifts, requests, announcements, reports, hours, employees, events, alerts, settings
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -60,7 +60,6 @@ enum Screen: String, CaseIterable, Identifiable {
         case .employees: return "الموظفون"
         case .events: return "الدورات والفعاليات"
         case .alerts: return "الإرسال والتنبيهات"
-        case .portal: return "بوابة الموظف"
         case .settings: return "الإعدادات"
         }
     }
@@ -77,7 +76,6 @@ enum Screen: String, CaseIterable, Identifiable {
         case .employees: return "person.2"
         case .events: return "book.pages"
         case .alerts: return "paperplane"
-        case .portal: return "person.crop.circle.badge.checkmark"
         case .settings: return "gearshape"
         }
     }

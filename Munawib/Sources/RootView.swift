@@ -73,7 +73,6 @@ struct RootView: View {
         case .employees: EmployeesView(sheet: $sheet)
         case .events: EventsView(sheet: $sheet)
         case .alerts: AlertsView()
-        case .portal: PortalView()
         case .settings: SettingsView()
         }
     }
@@ -118,8 +117,8 @@ struct HeaderBar: View {
                     }
             }
             .accessibilityLabel("التنبيهات")
-            Button { screen = .portal } label: {
-                Text(store.data.settings.loggedInEmployeeNumber == nil ? "تسجيل دخول" : "حسابي")
+            Button { screen = .settings } label: {
+                Text("حسابي")
                     .font(.subheadline.bold())
                     .padding(.horizontal, 14).frame(minHeight: 44)
                     .foregroundStyle(.white)
@@ -193,10 +192,9 @@ struct SideDrawer: View {
             .padding(.vertical, 8)
             ScrollView {
                 VStack(spacing: 2) {
-                    ForEach(Session.shared.isHead && !Session.shared.offlineMode ? [Screen.dashboard, .home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : Session.shared.isManager ? [Screen.home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : [Screen.myShifts, .roster, .requests, .announcements, .events, .alerts]) { item(for: $0) }
+                    ForEach(Session.shared.isHead && !Session.shared.offlineMode ? [Screen.dashboard, .home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : Session.shared.isManager ? [Screen.home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : [Screen.myShifts, .roster, .requests, .announcements, .events]) { item(for: $0) }
                 }
             }
-            item(for: .portal)
             item(for: .settings)
         }
         .foregroundStyle(.white)

@@ -29,6 +29,8 @@ struct APIError: LocalizedError {
         case "offline": return "لا يوجد اتصال بالإنترنت"
         case "unreachable": return "تعذّر الوصول إلى خادم المستشفى، تحقّق من إعدادات الخادم"
         case "missing fields": return "أكمل الحقول المطلوبة"
+        case "too many attempts": return "محاولات كثيرة غير صحيحة. حاول مجددًا بعد 15 دقيقة."
+        case "session expired": return "انتهت الجلسة، سجّل الدخول مجددًا"
         case "duplicate employee number": return "رقمك الوظيفي يجب أن يختلف عن رقم رئيسة التمريض"
         case "email exists": return "البريد مسجّل مسبقًا"
         case "invalid invite": return "رمز الدعوة غير صحيح أو مستخدم"

@@ -103,6 +103,7 @@ struct ProfileCard: View {
 extension AppStore {
     var myEmployee: Employee? {
         if let me = Session.shared.me, let id = UUID(uuidString: me.id), let e = employee(id) { return e }
+        if Session.shared.online { guard let n = Session.shared.me?.employee_number, !n.isEmpty else { return nil }; return data.employees.first { $0.employeeNumber == n } }
         return data.employees.first { $0.employeeNumber == data.settings.loggedInEmployeeNumber }
     }
     func shiftStart(year: Int, month: Int, day: Int, code: ShiftCode) -> Date? {
@@ -229,7 +230,7 @@ struct MyShiftsView: View {
                     if let exportMsg { Text(exportMsg).font(.footnote).foregroundStyle(.secondary) }
                 }.card()
             } else {
-                ContentUnavailableView("لم يتم ربط حسابك بموظف", systemImage: "person.crop.circle.badge.questionmark", description: Text("سجّل الدخول من بوابة الموظف أو برمز الدعوة."))
+                ContentUnavailableView("لم يتم ربط حسابك بموظف", systemImage: "person.crop.circle.badge.questionmark", description: Text("سجّل الدخول برقمك الوظيفي وكلمة المرور، أو فعّل حسابك بكود الدعوة."))
                     .card()
             }
         }
