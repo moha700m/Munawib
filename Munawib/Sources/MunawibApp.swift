@@ -6,8 +6,14 @@ struct MunawibApp: App {
     @State private var store = AppStore()
     @State private var session = Session.shared
     init() {
-        if ProcessInfo.processInfo.arguments.contains("-demo") {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-auth"), i + 1 < args.count {
+            Demo.auth = args[i + 1]
+            if Demo.auth == "created" { Session.shared.useOffline(); Demo.installRemote(); Session.shared.showHospitalCreated = true; let s = AppStore(); s.data = AppStore.seed(); _store = State(initialValue: s) }
+            else { Session.shared.logout() }
+        } else if args.contains("-demo") {
             Session.shared.useOffline()
+            if args.contains("-hospitalInfo") { Demo.installRemote() }
             let s = AppStore(); s.data = AppStore.seed(); _store = State(initialValue: s)
         }
     }

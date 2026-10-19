@@ -18,7 +18,11 @@ struct RootView: View {
                             PageHeader(screen: screen, sheet: $sheet)
                             content
                         }
+                        .id(screen)
+                        .transition(.opacity.combined(with: .offset(y: 8)))
                         .padding()
+                        .frame(maxWidth: 900)
+                        .frame(maxWidth: .infinity)
                     }
                     .refreshable { try? await Session.shared.refresh() }
                     .keyboardDone()
@@ -43,6 +47,8 @@ struct RootView: View {
             case .autoFill: AutoFillSheet()
             }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: screen)
+        .sensoryFeedback(.selection, trigger: screen)
         .task {
             if let s = UserDefaults.standard.string(forKey: "screen"), let sc = Screen(rawValue: s) { screen = sc }
             else if Session.shared.me?.role == "head_nurse" { screen = .dashboard } else if Session.shared.online && !Session.shared.isManager { screen = .myShifts }

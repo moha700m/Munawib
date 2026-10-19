@@ -42,6 +42,7 @@ final class Session {
 
     // MARK: Auth
     var showHospitalCreated = false
+    var demoInfo = false
     func signup(hospital: String, department: String, name: String, email: String, password: String, adminNumber: String = "", headNurseName: String = "", headNurseNumber: String = "") async throws {
         var b: [String: Any] = ["hospital": hospital, "department": department, "name": name, "email": email, "password": password]
         if !adminNumber.isEmpty { b["employee_number"] = adminNumber }

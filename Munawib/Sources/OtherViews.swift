@@ -294,7 +294,7 @@ struct SettingsView: View {
                     Button("إعادة تعيين", role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
                 }
             ProfileCard()
-            if Session.shared.online { HospitalInfoCard() }
+            if Session.shared.online || Session.shared.demoInfo { HospitalInfoCard() }
             NotificationTestPanel()
             if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }

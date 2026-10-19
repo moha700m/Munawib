@@ -1,6 +1,8 @@
 name: Screenshots
 on:
   workflow_dispatch:
+    inputs:
+      set: { description: "store or review", default: store }
 jobs:
   shots:
     strategy:
@@ -40,14 +42,34 @@ jobs:
           xcrun simctl ui "$UDID" appearance light || true
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/Munawib.app
           mkdir -p shots
-          i=1
-          for s in dashboard roster myShifts reports alerts; do
-            xcrun simctl terminate "$UDID" com.mohlab.munawib || true
-            xcrun simctl launch "$UDID" com.mohlab.munawib -demo -screen $s -AppleLanguages "(ar)" -AppleLocale ar_SA
-            sleep 6
-            xcrun simctl io "$UDID" screenshot "shots/0${i}_$s.png"
-            i=$((i+1))
-          done
+          shoot() { name=$1; shift; xcrun simctl terminate "$UDID" com.mohlab.munawib || true
+            xcrun simctl launch "$UDID" com.mohlab.munawib "$@" -AppleLanguages "(ar)" -AppleLocale ar_SA; sleep ${WAIT:-6}
+            xcrun simctl io "$UDID" screenshot "shots/$name.png"; }
+          SET="${{ github.event.inputs.set || 'store' }}"
+          if [ "$SET" = "review" ]; then
+            shoot a01_login -auth login
+            shoot a02_login_number -auth loginNumber
+            shoot a03_login_error -auth error
+            shoot a04_signup_step1 -auth signup
+            shoot a05_signup_step2 -auth signup2
+            WAIT=8 shoot a06_keyboard_numeric -auth keyboard
+            shoot a07_activate -auth activate
+            shoot a08_hospital_created -auth created
+            shoot a09_settings_hospital -demo -hospitalInfo -screen settings
+            shoot a10_home -demo -screen home
+            shoot a11_roster -demo -screen roster
+            shoot a12_dashboard -demo -screen dashboard
+            shoot a13_myshifts -demo -screen myShifts
+            xcrun simctl ui "$UDID" appearance dark
+            shoot a14_home_dark -demo -screen home
+            shoot a15_login_dark -auth login
+          else
+            shoot 01_dashboard -demo -screen dashboard
+            shoot 02_roster -demo -screen roster
+            shoot 03_myShifts -demo -screen myShifts
+            shoot 04_reports -demo -screen reports
+            shoot 05_alerts -demo -screen alerts
+          fi
           sips -g pixelWidth -g pixelHeight shots/*.png
       - uses: actions/upload-artifact@v4
         with:

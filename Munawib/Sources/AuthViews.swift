@@ -125,7 +125,16 @@ struct AuthView: View {
             .alert("نسيت كلمة المرور؟", isPresented: $showForgot) { Button("حسنًا") {} } message: {
                 Text("اطلب من رئيسة التمريض أو مدير النظام «إعادة تعيين» حسابك من شاشة الموظفين، وسيظهر لهم كود تفعيل جديد. ثم اختر «تفعيل حساب بدعوة» وأدخل الكود وكلمة مرور جديدة.")
             }
-            .onAppear { if let c = session.pendingInvite, !c.isEmpty { path = [.activate] } }
+            .onAppear {
+                if let c = session.pendingInvite, !c.isEmpty { path = [.activate] }
+                switch Demo.auth {
+                case "signup", "signup2", "keyboard": path = [.signup]
+                case "activate": path = [.activate]
+                case "loginNumber": identifier = "5002"; hospitalCode = "NR7K2Q"; password = "••••••••"
+                case "error": identifier = "5002"; hospitalCode = "NR7K2Q"; error = APIError(status: 403, message: "account not activated").errorDescription; errorIsActivation = true
+                default: break
+                }
+            }
             .onChange(of: session.pendingInvite) { _, c in if c != nil { path = [.activate] } }
         }
     }
@@ -186,6 +195,7 @@ struct SignupWizard: View {
     @State private var hnNumber = ""
     @State private var busy = false
     @State private var error: String?
+    @FocusState private var numberFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -203,7 +213,7 @@ struct SignupWizard: View {
                 } else {
                     VStack(spacing: DS.m) {
                         DSField(icon: "person", placeholder: "اسمك", text: $name).textContentType(.name)
-                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true).keyboardType(.asciiCapableNumberPad).digitsOnly($number)
+                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true).keyboardType(.asciiCapableNumberPad).digitsOnly($number).focused($numberFocused)
                         DSField(icon: "envelope", placeholder: "البريد الإلكتروني", text: $email, ltr: true)
                             .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
                         DSSecureField(placeholder: "كلمة المرور (8 أحرف على الأقل)", text: $password)
@@ -221,6 +231,11 @@ struct SignupWizard: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("تسجيل مستشفى جديد").navigationBarTitleDisplayMode(.inline)
         .keyboardDone()
+        .onAppear {
+            if Demo.auth == "signup" { hospital = "مستشفى النور التخصصي"; department = "الطوارئ"; hnName = "نورة العتيبي"; hnNumber = "5002" }
+            if Demo.auth == "signup2" || Demo.auth == "keyboard" { step = 2; name = "د. سارة القحطاني"; email = "admin@alnoor.sa"; password = "Demo-Pass-2026" }
+            if Demo.auth == "keyboard" { number = "50"; Task { try? await Task.sleep(for: .seconds(1)); numberFocused = true } }
+        }
     }
 
     private func submit() async {

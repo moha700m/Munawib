@@ -7,6 +7,7 @@ enum Theme {
     static let radius: CGFloat = 20
     static var background: Color { Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.05, green: 0.08, blue: 0.10, alpha: 1) : UIColor(red: 0.95, green: 0.97, blue: 0.97, alpha: 1) }) }
     static var card: Color { Color(uiColor: .secondarySystemGroupedBackground) }
+    static var border: Color { Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.08) : UIColor.black.withAlphaComponent(0.06) }) }
 }
 
 struct CardModifier: ViewModifier {
@@ -15,8 +16,8 @@ struct CardModifier: ViewModifier {
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(.quaternary, lineWidth: 1))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 3)
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.border, lineWidth: 1))
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
     }
 }
 
@@ -48,12 +49,20 @@ struct StatusBadge: View {
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .foregroundStyle(.white)
-            .background(Theme.primary.opacity(configuration.isPressed ? 0.8 : 1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    func makeBody(configuration: Configuration) -> some View { PrimaryBody(configuration: configuration) }
+    private struct PrimaryBody: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var enabled
+        var body: some View {
+            configuration.label
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(.white)
+                .background(LinearGradient(colors: enabled ? [Theme.primaryLight, Theme.primary] : [Color.gray.opacity(0.45), Color.gray.opacity(0.45)], startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: enabled ? Theme.primary.opacity(0.25) : .clear, radius: 8, y: 4)
+                .scaleEffect(configuration.isPressed ? 0.98 : 1)
+                .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+        }
     }
 }
 
@@ -66,6 +75,7 @@ struct OutlineButtonStyle: ButtonStyle {
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.primary.opacity(0.3)))
             .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
 
