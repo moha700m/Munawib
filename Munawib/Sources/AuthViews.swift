@@ -377,7 +377,7 @@ struct HospitalInfoCard: View {
         HStack {
             Text(title).foregroundStyle(.secondary)
             Spacer()
-            Text(value).font(.body.monospaced().weight(.semibold)).textSelection(.enabled)
+            Text(value).font(copy ? .body.monospaced().weight(.semibold) : .body.weight(.semibold)).textSelection(.enabled)
             if copy {
                 Button {
                     UIPasteboard.general.string = value; Haptics.success()
