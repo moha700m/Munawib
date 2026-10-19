@@ -212,14 +212,7 @@ struct MyShiftsView: View {
         VStack(spacing: 16) {
             if let me = store.myEmployee {
                 let shifts = store.upcomingShifts(for: me.id)
-                if let next = shifts.first(where: { $0.0 > Date() }) {
-                    VStack(spacing: 8) {
-                        Text("مناوبتك القادمة").font(.caption).foregroundStyle(.secondary)
-                        Text("\(next.1.title) · \(Fmt.date(next.0, "EEEE d MMMM h:mm a"))").font(.headline)
-                        Text(next.0, style: .relative).font(.system(.largeTitle, design: .rounded).bold()).foregroundStyle(Theme.primary).monospacedDigit()
-                        Text("متبقٍّ").font(.caption).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity).card()
-                }
+                TodayShiftCard()
                 VStack(alignment: .leading, spacing: 10) {
                     HStack { Text("مناوباتي القادمة").font(.title3.bold()); Spacer(); Text("\(shifts.count)").foregroundStyle(.secondary) }
                     if shifts.isEmpty { ContentUnavailableView("لا توجد مناوبات", systemImage: "calendar.badge.exclamationmark", description: Text("ستظهر هنا بعد رفع الجدول.")) }

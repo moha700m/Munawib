@@ -11,6 +11,7 @@ struct EmployeeForm: View {
     @State private var phone = ""
     @State private var role = "employee"
     @State private var originalRole = "employee"
+    @State private var resetCode: String?
     @State private var invite: NewEmployeeResponse?
     @State private var error: String?
 
@@ -30,18 +31,20 @@ struct EmployeeForm: View {
                         guard let employee, r != originalRole else { return }
                         Task { do { try await Session.shared.setRole(employee.id, role: r); originalRole = r } catch { self.error = (error as? LocalizedError)?.errorDescription } }
                     }
-                    if let employee, let u = Session.shared.user(employee.id.uuidString.lowercased()), let c = u.invite_code {
-                        Section("رمز الدعوة (لم ينضم بعد)") {
-                            Text(c).font(.title2.monospaced().bold()).textSelection(.enabled)
-                            ShareLink(item: "انضم إلى مِناوب برمز الدعوة \(c)\nmunawib://join?code=\(c)") { Label("مشاركة", systemImage: "square.and.arrow.up") }
+                    if let employee, let u = Session.shared.user(employee.id.uuidString.lowercased()) {
+                        if let c = resetCode ?? u.invite_code {
+                            Section { InviteCodeRow(code: c, name: u.name, number: u.employee_number) } header: { Text("كود التفعيل — الحساب غير مفعّل") }
+                        } else {
+                            Section {
+                                Button("إعادة تعيين كلمة المرور (كود جديد)", role: .destructive) {
+                                    Task { do { resetCode = try await Session.shared.resetInvite(employee.id) } catch { self.error = (error as? LocalizedError)?.errorDescription } }
+                                }
+                            } footer: { Text("يُلغى الدخول الحالي ويظهر كود تفعيل جديد للموظف.") }
                         }
                     }
                 }
                 if let invite {
-                    Section("رمز الدعوة") {
-                        Text(invite.invite_code).font(.title.monospaced().bold()).textSelection(.enabled)
-                        ShareLink(item: "انضم إلى مِناوب: افتح التطبيق ← انضمام بدعوة ← الرمز \(invite.invite_code)\n\(invite.invite_link)") { Label("مشاركة الدعوة", systemImage: "square.and.arrow.up") }
-                    }
+                    Section { InviteCodeRow(code: invite.invite_code, name: invite.user.name, number: invite.user.employee_number) } header: { Text("تمت الإضافة — كود التفعيل") }
                 }
                 if let error { Text(error).foregroundStyle(.red) }
                 Picker("القسم", selection: $dept) {

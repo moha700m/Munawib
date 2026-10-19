@@ -13,14 +13,20 @@ struct MunawibApp: App {
     }
     var body: some Scene {
         WindowGroup {
-            Group {
-                if session.isLoggedIn { RootView() } else { AuthView() }
+            ZStack {
+                if session.isLoggedIn { RootView().transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 1.02)), removal: .opacity)) }
+                else { AuthView().transition(.opacity) }
             }
+            .animation(.easeInOut(duration: 0.35), value: session.isLoggedIn)
+            .sheet(isPresented: Binding(get: { session.showHospitalCreated && session.isLoggedIn }, set: { session.showHospitalCreated = $0 })) { HospitalCreatedSheet() }
                 .environment(store)
                 .environment(session)
                 .onAppear { session.store = store }
                 .task { session.store = store; try? await session.refresh(); await session.uploadToken() }
                 .onOpenURL { url in
+                    if url.host == "server", let s = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "url" })?.value {
+                        Task { if case .success = await APIClient.check(s) { ServerConfig.set(APIClient.normalize(s)); Haptics.success() } }
+                    }
                     if url.host == "join", let c = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "code" })?.value {
                         session.pendingInvite = c
                     }

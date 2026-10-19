@@ -17,6 +17,7 @@
 <key>NSCalendarsFullAccessUsageDescription</key><string>لإضافة مناوباتك إلى التقويم.</string>
 <key>UIBackgroundModes</key><array><string>remote-notification</string></array>
 <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>com.mohlab.munawib</string><key>CFBundleURLSchemes</key><array><string>munawib</string></array></dict></array>
+<key>NSFaceIDUsageDescription</key><string>للدخول السريع إلى حسابك في مِناوب.</string>
 <key>UILaunchScreen</key><dict/>
 <key>NSPhotoLibraryUsageDescription</key><string>لاختيار صورة الجدول وقراءتها.</string>
 <key>NSCameraUsageDescription</key><string>لتصوير الجدول.</string>

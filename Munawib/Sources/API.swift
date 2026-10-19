@@ -22,7 +22,14 @@ struct APIError: LocalizedError {
     let status: Int; let message: String
     var errorDescription: String? {
         switch message {
-        case "invalid credentials": return "البريد أو كلمة المرور غير صحيحة"
+        case "invalid credentials", "wrong password": return "كلمة المرور غير صحيحة"
+        case "account not found": return "لا يوجد حساب بهذا البريد أو الرقم الوظيفي"
+        case "hospital not found": return "رمز المستشفى غير صحيح"
+        case "account not activated": return "الحساب غير مفعّل، استخدم كود الدعوة من رئيسة التمريض أو المدير"
+        case "offline": return "لا يوجد اتصال بالإنترنت"
+        case "unreachable": return "تعذّر الوصول إلى خادم المستشفى، تحقّق من إعدادات الخادم"
+        case "missing fields": return "أكمل الحقول المطلوبة"
+        case "duplicate employee number": return "رقمك الوظيفي يجب أن يختلف عن رقم رئيسة التمريض"
         case "email exists": return "البريد مسجّل مسبقًا"
         case "invalid invite": return "رمز الدعوة غير صحيح أو مستخدم"
         case "password too short": return "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
@@ -60,7 +67,7 @@ struct Bootstrap: Codable {
     var announcements: [RAnnouncement]; var notifications: [RNotification]
     var audit_log: [RAudit]?
 }
-struct AuthResponse: Codable { var token: String; var user: RUser; var hospital_code: String?; var head_nurse_invite: String? }
+struct AuthResponse: Codable { var token: String; var user: RUser; var hospital_code: String?; var head_nurse_invite: String?; var hospital_name: String? }
 struct NewEmployeeResponse: Codable { var user: RUser; var invite_code: String; var invite_link: String }
 struct PushResult: Codable { var status: Int; var reason: String?; var host: String? }
 struct PushTestResponse: Codable { var sent: Int; var devices: Int; var results: [PushResult] }
@@ -68,7 +75,24 @@ struct IDResponse: Codable { var id: String }
 
 final class APIClient {
     static let shared = APIClient()
-    static let baseURL = URL(string: "https://munawib-api.saad-cloud-2026.workers.dev")!
+    static let defaultServer = "https://munawib-api.saad-cloud-2026.workers.dev"
+    static var baseURL: URL { URL(string: UserDefaults.standard.string(forKey: "serverURL") ?? defaultServer) ?? URL(string: defaultServer)! }
+    static func normalize(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty && !t.contains("://") { t = "https://" + t }
+        while t.hasSuffix("/") { t.removeLast() }
+        return t
+    }
+    /// Validates a server by calling /health; returns runtime name on success.
+    static func check(_ server: String) async -> Result<String, Error> {
+        guard let u = URL(string: normalize(server) + "/health") else { return .failure(APIError(status: 0, message: "bad url")) }
+        do {
+            var r = URLRequest(url: u); r.timeoutInterval = 10
+            let (d, resp) = try await URLSession.shared.data(for: r)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200, let j = try JSONSerialization.jsonObject(with: d) as? [String: Any], j["service"] as? String == "munawib-api" else { return .failure(APIError(status: 0, message: "not munawib")) }
+            return .success(j["runtime"] as? String ?? "cloudflare")
+        } catch { return .failure(error) }
+    }
     var token: String? { didSet { Keychain.set(token, for: "token") } }
     private init() { token = Keychain.get("token") }
 
@@ -83,7 +107,11 @@ final class APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
-        let (data, resp) = try await URLSession.shared.data(for: req)
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await URLSession.shared.data(for: req) }
+        catch let e as URLError {
+            throw APIError(status: -1, message: [.notConnectedToInternet, .networkConnectionLost, .dataNotAllowed].contains(e.code) ? "offline" : "unreachable")
+        }
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String ?? ""

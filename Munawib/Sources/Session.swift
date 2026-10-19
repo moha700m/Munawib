@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import UIKit
+import SwiftUI
 import UserNotifications
 
 /// Bridges the cloud backend (Cloudflare Worker) and the local AppStore used by the views.
@@ -19,7 +20,9 @@ final class Session {
     var lastPushResult: String?
     var pendingInvite: String?
 
-    var isLoggedIn: Bool { offlineMode || (APIClient.shared.token != nil && me != nil) }
+    /// Observed mirror of the Keychain token so SwiftUI re-renders immediately on login/logout.
+    var authToken: String? = APIClient.shared.token
+    var isLoggedIn: Bool { offlineMode || (authToken != nil && me != nil) }
     var isManager: Bool { offlineMode || (me?.isManager ?? false) }
     var isHead: Bool { offlineMode || (me?.isHead ?? false) }
     var roleTitle: String { offlineMode ? "وضع محلي" : (me?.roleTitle ?? "") }
@@ -38,12 +41,37 @@ final class Session {
     }
 
     // MARK: Auth
-    func signup(hospital: String, department: String, name: String, email: String, password: String, headNurseName: String = "", headNurseNumber: String = "") async throws {
+    var showHospitalCreated = false
+    func signup(hospital: String, department: String, name: String, email: String, password: String, adminNumber: String = "", headNurseName: String = "", headNurseNumber: String = "") async throws {
         var b: [String: Any] = ["hospital": hospital, "department": department, "name": name, "email": email, "password": password]
+        if !adminNumber.isEmpty { b["employee_number"] = adminNumber }
         if !headNurseName.isEmpty { b["head_nurse"] = ["name": headNurseName, "employee_number": headNurseNumber] }
         let r: AuthResponse = try await APIClient.shared.send("POST", "auth/signup", b)
+        if r.hospital_code != nil { showHospitalCreated = true }
         if let c = r.hospital_code { savedHospitalCode = c; signupInfo = "رمز المستشفى: \(c)" + (r.head_nurse_invite.map { "\nدعوة رئيسة التمريض: \($0)" } ?? "") }
         try await finishAuth(r)
+    }
+    func login(identifier: String, hospitalCode: String, password: String) async throws {
+        let id = identifier.trimmingCharacters(in: .whitespaces)
+        if id.contains("@") { try await login(email: id.lowercased(), password: password) }
+        else { try await loginEmployee(hospitalCode: hospitalCode.trimmingCharacters(in: .whitespaces).uppercased(), number: id.asciiDigits, password: password) }
+    }
+    func resetInvite(_ id: UUID) async throws -> String {
+        struct R: Decodable { var invite_code: String }
+        let r: R = try await APIClient.shared.send("POST", "employees/\(id.uuidString.lowercased())/reset")
+        try? await refresh(); return r.invite_code
+    }
+    /// Formatted Arabic login details (never includes passwords).
+    var loginDetailsText: String {
+        var lines = ["بيانات الدخول إلى مِناوب"]
+        if let h = remote?.hospital { lines.append("المستشفى: \(h.name)") }
+        if let c = remote?.hospital?.code ?? (savedHospitalCode.isEmpty ? nil : savedHospitalCode) { lines.append("رمز المستشفى: \(c)") }
+        if let me { lines.append("\(me.roleTitle): \(me.name)" + (me.employee_number.map { $0.isEmpty ? "" : " — الرقم الوظيفي \($0)" } ?? "") + (me.email.map { " — \($0)" } ?? "")) }
+        for u in (remote?.users ?? []) where u.role == "head_nurse" && u.id != me?.id {
+            lines.append("رئيسة التمريض: \(u.name)" + (u.employee_number.map { " — الرقم الوظيفي \($0)" } ?? "") + (u.invite_code.map { " — كود التفعيل \($0)" } ?? " — مفعّل"))
+        }
+        lines.append("طريقة الدخول: افتح مِناوب ← أدخل الرقم الوظيفي ورمز المستشفى وكلمة المرور. أول مرة: «تفعيل حساب بدعوة».")
+        return lines.joined(separator: "\n")
     }
     func loginEmployee(hospitalCode: String, number: String, password: String) async throws {
         let r: AuthResponse = try await APIClient.shared.send("POST", "auth/login", ["hospital_code": hospitalCode, "employee_number": number, "password": password])
@@ -73,18 +101,25 @@ final class Session {
     }
     private func finishAuth(_ r: AuthResponse) async throws {
         APIClient.shared.token = r.token
-        me = r.user
-        offlineMode = false; UserDefaults.standard.set(false, forKey: "offlineMode")
-        try await refresh()
-        await registerForPush()
+        UserDefaults.standard.set(false, forKey: "offlineMode")
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                self.authToken = r.token
+                self.me = r.user
+                self.offlineMode = false
+            }
+        }
+        try? await refresh()
+        Task { await registerForPush() }
     }
-    func useOffline() { offlineMode = true; UserDefaults.standard.set(true, forKey: "offlineMode") }
+    func useOffline() { UserDefaults.standard.set(true, forKey: "offlineMode"); withAnimation(.easeInOut(duration: 0.35)) { offlineMode = true } }
     func logout() {
         if let t = deviceToken, APIClient.shared.token != nil {
             Task { try? await APIClient.shared.call("DELETE", "devices", ["token": t]) }
         }
         APIClient.shared.token = nil
-        me = nil; remote = nil; tokenRegistered = false
+        withAnimation(.easeInOut(duration: 0.35)) { authToken = nil; me = nil; offlineMode = false }
+        remote = nil; tokenRegistered = false
         UserDefaults.standard.set(false, forKey: "tokenRegistered")
         offlineMode = false; UserDefaults.standard.set(false, forKey: "offlineMode")
         try? FileManager.default.removeItem(at: Self.cacheURL)
@@ -98,7 +133,7 @@ final class Session {
     // MARK: Sync
     @MainActor
     func refresh() async throws {
-        guard !offlineMode, APIClient.shared.token != nil else { return }
+        guard !offlineMode, authToken != nil else { return }
         syncing = true; defer { syncing = false }
         do {
             let b: Bootstrap = try await APIClient.shared.send("GET", "bootstrap")
@@ -158,7 +193,7 @@ final class Session {
     }
 
     // MARK: Writes (silently no-op in offline mode)
-    var online: Bool { !offlineMode && APIClient.shared.token != nil }
+    var online: Bool { !offlineMode && authToken != nil }
 
     func pushRoster(_ r: Roster, status: String?) async throws -> Int {
         guard online, let dep = deptID(r.department) else { return 0 }

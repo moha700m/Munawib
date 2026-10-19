@@ -36,7 +36,7 @@ const dn=id=>B.departments.find(d=>d.id===id)?.name||'',un=id=>B.users.find(u=>u
 function logout(){T='';localStorage.removeItem('tok');B=null;render()}
 $('#logout').onclick=logout;
 async function load(){B=await api('GET','/bootstrap');if(!B.me)return;try{B.super=await api('GET','/super/hospitals')}catch{B.super=null}}
-function navs(){const v=[['dash','الرئيسية'],['roster','الجدول'],['staff','الموظفون',isMgr()],['req','الموافقات'],['ann','الإعلانات'],['push','تنبيه مخصص',isHead()],['hours','الساعات والتقارير'],['events','الدورات'],['cov','التغطية',isHead()],['depts','الأقسام',isAdmin()],['audit','سجل التدقيق',isHead()],['notif','سجل التنبيهات'],['super','كل المستشفيات',!!B.super]].filter(x=>x[2]!==false);
+function navs(){const v=[['dash','الرئيسية'],['roster','الجدول'],['staff','الموظفون',isMgr()],['req','الموافقات'],['ann','الإعلانات'],['push','تنبيه مخصص',isHead()],['hours','الساعات والتقارير'],['events','الدورات'],['cov','التغطية',isHead()],['depts','الأقسام',isAdmin()],['audit','سجل التدقيق',isHead()],['notif','سجل التنبيهات'],['info','بيانات المستشفى',isHead()],['super','كل المستشفيات',!!B.super]].filter(x=>x[2]!==false);
  $('#nav').innerHTML=v.map(([k,t])=>`<button class="${view===k?'':'o'}" onclick="go('${k}')">${t}</button>`).join('')}
 window.go=k=>{view=k;render()};
 async function render(){const a=$('#app');$('#nav').classList.toggle('hide',!T);$('#logout').classList.toggle('hide',!T);
@@ -51,14 +51,14 @@ function authView(a){a.innerHTML=`<div class="card" style="max-width:460px;margi
 <div class="row"><button id="m1">بالرقم الوظيفي</button><button class="o" id="m2">بالبريد</button><button class="o" id="m3">تسجيل مستشفى</button><button class="o" id="m4">انضمام بدعوة</button></div><div id="f"></div><p id="err" style="color:#dc2626"></p></div>`;
  const forms={m1:`<label>رمز المستشفى</label><input id="hc" value="${esc(localStorage.hc||'')}" dir="ltr"><label>الرقم الوظيفي</label><input id="en" inputmode="numeric" dir="ltr"><label>كلمة المرور</label><input id="pw" type="password"><br><br><button id="go">دخول</button>`,
  m2:`<label>البريد</label><input id="em" type="email" dir="ltr"><label>كلمة المرور</label><input id="pw" type="password"><br><br><button id="go">دخول</button>`,
- m3:`<label>اسم المستشفى</label><input id="h"><label>القسم الأول</label><input id="d" value="الطوارئ"><label>اسمك</label><input id="n"><label>البريد</label><input id="em" type="email" dir="ltr"><label>كلمة المرور (8+)</label><input id="pw" type="password"><label>رئيسة التمريض (اختياري)</label><div class="row"><input id="hn" placeholder="الاسم"><input id="hnn" placeholder="الرقم الوظيفي" inputmode="numeric"></div><br><button id="go">إنشاء</button>`,
+ m3:`<label>اسم المستشفى</label><input id="h"><label>القسم الأول</label><input id="d" value="الطوارئ"><label>اسمك</label><input id="n"><label>رقمك الوظيفي (اختياري)</label><input id="an" inputmode="numeric" dir="ltr"><label>البريد</label><input id="em" type="email" dir="ltr"><label>كلمة المرور (8+)</label><input id="pw" type="password"><label>رئيسة التمريض (اختياري)</label><div class="row"><input id="hn" placeholder="الاسم"><input id="hnn" placeholder="الرقم الوظيفي" inputmode="numeric"></div><br><button id="go">إنشاء</button>`,
  m4:`<label>رمز الدعوة</label><input id="code" dir="ltr"><label>البريد (اختياري)</label><input id="em" type="email" dir="ltr"><label>كلمة المرور (8+)</label><input id="pw" type="password"><br><br><button id="go">انضمام</button>`};
  const set=k=>{['m1','m2','m3','m4'].forEach(x=>$('#'+x).className=x===k?'':'o');$('#f').innerHTML=forms[k];$('#go').onclick=()=>submit(k)};
  ['m1','m2','m3','m4'].forEach(k=>$('#'+k).onclick=()=>set(k));set('m1');
  async function submit(k){const v=id=>($('#'+id)?.value||'').trim();try{let r;
   if(k==='m1'){localStorage.hc=v('hc').toUpperCase();r=await api('POST','/auth/login',{hospital_code:v('hc').toUpperCase(),employee_number:v('en'),password:$('#pw').value})}
   if(k==='m2')r=await api('POST','/auth/login',{email:v('em'),password:$('#pw').value});
-  if(k==='m3'){r=await api('POST','/auth/signup',{hospital:v('h'),department:v('d'),name:v('n'),email:v('em'),password:$('#pw').value,...(v('hn')?{head_nurse:{name:v('hn'),employee_number:v('hnn')}}:{})});alert('رمز المستشفى: '+r.hospital_code+(r.head_nurse_invite?'\nدعوة رئيسة التمريض: '+r.head_nurse_invite:''))}
+  if(k==='m3'){r=await api('POST','/auth/signup',{hospital:v('h'),department:v('d'),name:v('n'),email:v('em'),password:$('#pw').value,...(v('an')?{employee_number:v('an')}:{}),...(v('hn')?{head_nurse:{name:v('hn'),employee_number:v('hnn')}}:{})});T=r.token;localStorage.tok=T;view='info';created=true;await refresh();return}
   if(k==='m4')r=await api('POST','/auth/join',{code:v('code').toUpperCase(),email:v('em')||undefined,password:$('#pw').value});
   T=r.token;localStorage.tok=T;view='dash';await refresh()}catch(e){$('#err').textContent=e.message}}}
 // ---------- views ----------
@@ -69,7 +69,19 @@ const staff=()=>B.users.filter(u=>u.department_id===myDept());
 const roster=()=>{const[y,m]=ym();return B.rosters.find(r=>r.department_id===myDept()&&r.year===y&&r.month===m)};
 const today=()=>new Date().toISOString().slice(0,10);
 function cov(r,d){let D=0,N=0;for(const u of staff()){const c=r?.grid?.[u.id]?.[d];if(c==='D')D++;if(c==='N')N++}return{D,N}}
+let created=false;
+function infoText(){const L=['بيانات الدخول إلى مِناوب','المستشفى: '+(B.hospital?.name||'')];if(B.hospital?.code)L.push('رمز المستشفى: '+B.hospital.code);const m=me();L.push(ROLE[m.role]+': '+m.name+(m.employee_number?' — الرقم الوظيفي '+m.employee_number:'')+(m.email?' — '+m.email:''));
+ for(const u of B.users.filter(u=>u.role==='head_nurse'&&u.id!==m.id))L.push('رئيسة التمريض: '+u.name+(u.employee_number?' — الرقم الوظيفي '+u.employee_number:'')+(u.invite_code?' — كود التفعيل '+u.invite_code:' — مفعّل'));
+ L.push('طريقة الدخول: افتح مِناوب ← أدخل الرقم الوظيفي ورمز المستشفى وكلمة المرور. أول مرة: «تفعيل حساب بدعوة».');return L.join('\n')}
+window.cp=(t,b)=>{navigator.clipboard.writeText(t).then(()=>{toast('تم النسخ');if(b){const o=b.textContent;b.textContent='✓ تم النسخ';setTimeout(()=>b.textContent=o,1500)}navigator.vibrate?.(20)})};
+window.shareAll=()=>{const t=infoText();if(navigator.share)navigator.share({text:t}).catch(()=>{});else cp(t)};
+const crow=(k,v)=>`<div class="row" style="justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e5e7eb"><span class="muted">${k}</span><span><code style="font-size:1.1em">${esc(v)}</code> <button class="o" onclick="cp('${esc(v)}',this)">نسخ</button></span></div>`;
 const V={
+info(){const m=me();let h=`<div class="card" style="max-width:560px">${created?'<h2>✅ تم إنشاء المستشفى</h2><p class="muted">احتفظ بهذه البيانات وشاركها مع رئيسة التمريض. تجدها لاحقًا في «بيانات المستشفى».</p>':'<h2>بيانات المستشفى</h2>'}
+ <div class="row" style="justify-content:space-between;padding:6px 0"><span class="muted">المستشفى</span><b>${esc(B.hospital?.name||'')}</b></div>`;
+ if(B.hospital?.code)h+=crow('رمز المستشفى',B.hospital.code);if(m.employee_number)h+=crow('رقمك الوظيفي',m.employee_number);if(m.email)h+=crow('بريدك',m.email);
+ for(const u of B.users.filter(u=>u.role==='head_nurse'&&u.id!==m.id)){h+=`<h3 style="margin-top:14px">رئيسة التمريض: ${esc(u.name)}</h3>`;if(u.employee_number)h+=crow('الرقم الوظيفي',u.employee_number);h+=u.invite_code?crow('كود التفعيل',u.invite_code):'<p style="color:#16a34a">الحساب مفعّل ✓</p>'}
+ created=false;return h+`<br><button onclick="shareAll()">مشاركة الكل</button><p class="muted" style="font-size:.8em">لا تتضمن المشاركة أي كلمة مرور.</p></div>`},
 dash(){const dep=B.departments.find(d=>d.id===myDept())||{};const r=roster(),d=new Date().getDate(),c=cov(r,d);const pend=B.leaves.filter(x=>x.status==='pending').length+B.swaps.filter(x=>x.status==='pending').length;
  const onLeave=B.leaves.filter(l=>l.status==='approved'&&l.start_date<=today()&&l.end_date>=today());
  return `<div class="card row"><div>${deptSel()}</div><div class="muted">${esc(B.hospital?.name)} ${B.hospital?.code?`· رمز المستشفى <code>${B.hospital.code}</code>`:''}</div></div>

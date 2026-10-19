@@ -31,6 +31,8 @@ struct HomeView: View {
         let today = store.todayCounts()
         let emps = store.departmentEmployees
         VStack(spacing: 16) {
+            TodayShiftCard()
+            if Session.shared.syncing && Session.shared.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
                 StatCard(symbol: "calendar", tint: Theme.primary, caption: "جدول \(store.monthTitle)", value: store.roster.status.title, footnote: store.roster.status == .approved ? "تم الإرسال للفريق" : "لن تُرسل التنبيهات قبل الاعتماد")
                 StatCard(symbol: "person.2", tint: .blue, caption: "الموظفون", value: "\(emps.count)", footnote: "في القسم الحالي")

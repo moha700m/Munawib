@@ -52,7 +52,7 @@ async function apnsJWT(env) {
 }
 async function apnsSend(env, token, envName, title, body, data = {}) {
   const host = envName === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
-  const r = await fetch(`https://${host}/3/device/${token}`, {
+  const r = await (globalThis.__apnsFetch || fetch)(`https://${host}/3/device/${token}`, {
     method: 'POST',
     headers: { authorization: `bearer ${await apnsJWT(env)}`, 'apns-topic': env.APNS_TOPIC || 'com.mohlab.munawib', 'apns-push-type': 'alert', 'apns-priority': '10' },
     body: JSON.stringify({ aps: { alert: { title, body }, sound: 'default', badge: 1 }, ...data }),
@@ -111,17 +111,17 @@ async function route(req, env) {
   if (p === '/privacy') return new Response(PRIVACY_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
   if (p === '/support' || p === '/marketing') return new Response(SUPPORT_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
   if (p === '/admin' || p === '/admin/index.html') return new Response(typeof ADMIN_HTML === 'string' ? ADMIN_HTML : 'admin not bundled', { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-frame-options': 'DENY' } });
-  if (p === '/' || p === '/health') return json({ ok: true, service: 'munawib-api', apns: !!env.APNS_KEY });
+  if (p === '/' || p === '/health') return json({ ok: true, service: 'munawib-api', version: '2.2', apns: !!env.APNS_KEY, runtime: env.RUNTIME || 'cloudflare' });
 
   if (p === '/auth/signup' && m === 'POST') {
     const { hospital, email, password, name, department } = body;
-    need(hospital && email && password && name, 400, 'missing fields'); need(password.length >= 8, 400, 'password too short');
+    need(hospital && email && password && name, 400, 'missing fields'); if (body.employee_number && body.head_nurse?.employee_number) need(String(body.employee_number) !== String(body.head_nurse.employee_number), 400, 'duplicate employee number'); need(password.length >= 8, 400, 'password too short');
     need(!(await DB.prepare('SELECT 1 FROM users WHERE email=?').bind(email.toLowerCase()).first()), 409, 'email exists');
     const hid = uid(), did = uid(), u = uid();
     await DB.batch([
       DB.prepare('INSERT INTO hospitals(id,name,created_at,code) VALUES(?,?,?,?)').bind(hid, hospital, now(), hospCode()),
       DB.prepare('INSERT INTO departments(id,hospital_id,name) VALUES(?,?,?)').bind(did, hid, department || 'القسم الرئيسي'),
-      DB.prepare('INSERT INTO users(id,hospital_id,department_id,email,pw_hash,name,title,role,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(u, hid, did, email.toLowerCase(), await hashPw(password), name, 'Admin', 'admin', now()),
+      DB.prepare('INSERT INTO users(id,hospital_id,department_id,email,pw_hash,name,title,role,employee_number,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(u, hid, did, email.toLowerCase(), await hashPw(password), name, 'Admin', 'admin', String(body.employee_number || '').trim() || null, now()),
     ]);
     const out = await session(env, await DB.prepare('SELECT * FROM users WHERE id=?').bind(u).first());
     if (body.head_nurse?.name) {
@@ -131,17 +131,22 @@ async function route(req, env) {
       out.head_nurse_invite = code;
     }
     out.hospital_code = (await DB.prepare('SELECT code FROM hospitals WHERE id=?').bind(hid).first()).code;
+    out.hospital_name = hospital; out.department = department || 'القسم الرئيسي';
     return json(out, 201);
   }
   if (p === '/auth/login' && m === 'POST') {
     let u;
+    const ident = String(body.identifier || '').trim();
+    if (ident && !body.employee_number && !body.email) { if (ident.includes('@')) body.email = ident; else body.employee_number = ident; }
     if (body.employee_number || body.employeeNumber) {
       const hc = String(body.hospital_code || body.hospitalCode || body.hospital_id || '').trim();
       const h = await DB.prepare('SELECT id FROM hospitals WHERE code=? OR id=?').bind(hc.toUpperCase(), hc).first();
-      need(h, 401, 'invalid credentials');
+      need(h, 404, 'hospital not found');
       u = await DB.prepare('SELECT * FROM users WHERE hospital_id=? AND employee_number=?').bind(h.id, String(body.employee_number || body.employeeNumber).trim()).first();
     } else u = await DB.prepare('SELECT * FROM users WHERE email=?').bind((body.email || '').toLowerCase()).first();
-    need(u && await verifyPw(body.password || '', u.pw_hash), 401, 'invalid credentials');
+    need(u, 404, 'account not found');
+    need(u.pw_hash, 403, 'account not activated');
+    need(await verifyPw(body.password || '', u.pw_hash), 401, 'wrong password');
     return json(await session(env, u));
   }
   if (p === '/auth/join' && m === 'POST') {
@@ -240,6 +245,15 @@ async function route(req, env) {
     need(allowed.includes(body.role) && (me.role === 'admin' || ['employee', 'supervisor'].includes(t.role)), 403, 'forbidden');
     await DB.prepare('UPDATE users SET role=? WHERE id=?').bind(body.role, seg[1]).run();
     await audit(env, me, d, 'employee.role', `${t.name}: ${t.role} → ${body.role}`); return json({ ok: true });
+  }
+  if (seg[0] === 'employees' && seg[2] === 'reset' && m === 'POST') {
+    const d = await userDept(seg[1]); headOf(d); need(seg[1] !== me.id, 400, 'cannot reset self');
+    const t = await DB.prepare('SELECT role,name FROM users WHERE id=?').bind(seg[1]).first(); need(t && (me.role === 'admin' || t.role !== 'admin'), 403, 'forbidden');
+    const code = inviteCode();
+    await DB.prepare('UPDATE users SET pw_hash=NULL,invite_code=? WHERE id=?').bind(code, seg[1]).run();
+    await DB.prepare('DELETE FROM device_tokens WHERE user_id=?').bind(seg[1]).run();
+    await audit(env, me, d, 'employee.reset', t.name);
+    return json({ invite_code: code, invite_link: `munawib://join?code=${code}` });
   }
   if (seg[0] === 'employees' && seg[1] && m === 'DELETE') { const d0 = await userDept(seg[1]); headOf(d0); need(seg[1] !== me.id, 400, 'cannot delete self'); await audit(env, me, d0, 'employee.delete', seg[1]); await DB.prepare('DELETE FROM users WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
 

@@ -294,11 +294,12 @@ struct SettingsView: View {
                     Button("إعادة تعيين", role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
                 }
             ProfileCard()
+            if Session.shared.online { HospitalInfoCard() }
             NotificationTestPanel()
             if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
-            Text("مِناوب 2.1 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
+            Text("مِناوب 2.2 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

@@ -30,7 +30,7 @@ jobs:
           set -o pipefail
           xcodebuild archive -project Munawib.xcodeproj -scheme Munawib -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Munawib.xcarchive \
-            DEVELOPMENT_TEAM=$TEAM_ID CURRENT_PROJECT_VERSION=${{ github.run_number }} MARKETING_VERSION=2.1 \
+            DEVELOPMENT_TEAM=$TEAM_ID CURRENT_PROJECT_VERSION=${{ github.run_number }} MARKETING_VERSION=2.2 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -100
       - name: Embed entitlements (aps-environment) for cloud signing
         run: |
