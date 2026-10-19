@@ -27,6 +27,8 @@ struct APIError: LocalizedError {
         case "invalid invite": return "رمز الدعوة غير صحيح أو مستخدم"
         case "password too short": return "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
         case "forbidden": return "ليست لديك صلاحية"
+        case "employee number exists": return "الرقم الوظيفي مستخدم مسبقًا"
+        case "colleague must be in your department": return "الزميل يجب أن يكون في قسمك"
         case "unauthorized": return "انتهت الجلسة، سجّل الدخول مجددًا"
         default: return message.isEmpty ? "تعذّر الاتصال بالخادم" : message
         }
@@ -38,11 +40,13 @@ struct RUser: Codable, Identifiable, Hashable {
     var id: String; var hospital_id: String; var department_id: String?; var email: String?; var name: String
     var title: String?; var employee_number: String?; var role: String; var phone: String?; var photo: String?
     var reminder_minutes: Int?; var invite_code: String?; var joined: Bool?
-    var roleTitle: String { role == "admin" ? "مدير" : role == "supervisor" ? "مشرف" : "موظف" }
-    var isManager: Bool { role == "admin" || role == "supervisor" }
+    var roleTitle: String { role == "admin" ? "مدير" : role == "head_nurse" ? "رئيسة تمريض" : role == "supervisor" ? "مشرف" : "موظف" }
+    var isManager: Bool { role == "admin" || role == "head_nurse" || role == "supervisor" }
+    var isHead: Bool { role == "admin" || role == "head_nurse" }
 }
-struct RHospital: Codable { var id: String; var name: String }
-struct RDepartment: Codable, Identifiable, Hashable { var id: String; var name: String }
+struct RHospital: Codable { var id: String; var name: String; var code: String? }
+struct RDepartment: Codable, Identifiable, Hashable { var id: String; var name: String; var min_day: Int?; var min_night: Int? }
+struct RAudit: Codable, Identifiable, Hashable { var id: String; var user_name: String?; var action: String; var detail: String?; var created_at: Double }
 struct RRoster: Codable { var id: String; var department_id: String; var year: Int; var month: Int; var status: String; var grid: [String: [String: String]]; var day_start: Int?; var night_start: Int? }
 struct RAttendance: Codable { var id: String; var user_id: String; var date: String; var kind: String; var hours: Double; var note: String? }
 struct REvent: Codable { var id: String; var title: String; var date: String; var location: String?; var audience: String? }
@@ -54,8 +58,9 @@ struct Bootstrap: Codable {
     var me: RUser; var hospital: RHospital?; var departments: [RDepartment]; var users: [RUser]; var rosters: [RRoster]
     var attendance: [RAttendance]; var events: [REvent]; var leaves: [RLeave]; var swaps: [RSwap]
     var announcements: [RAnnouncement]; var notifications: [RNotification]
+    var audit_log: [RAudit]?
 }
-struct AuthResponse: Codable { var token: String; var user: RUser }
+struct AuthResponse: Codable { var token: String; var user: RUser; var hospital_code: String?; var head_nurse_invite: String? }
 struct NewEmployeeResponse: Codable { var user: RUser; var invite_code: String; var invite_link: String }
 struct PushResult: Codable { var status: Int; var reason: String?; var host: String? }
 struct PushTestResponse: Codable { var sent: Int; var devices: Int; var results: [PushResult] }

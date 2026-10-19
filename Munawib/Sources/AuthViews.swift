@@ -9,6 +9,11 @@ struct AuthView: View {
     @State private var hospital = ""
     @State private var department = ""
     @State private var code = ""
+    @State private var byNumber = true
+    @State private var hospitalCode = Session.shared.savedHospitalCode
+    @State private var number = ""
+    @State private var hnName = ""
+    @State private var hnNumber = ""
     @State private var busy = false
     @State private var error: String?
     @FocusState private var focus: Bool
@@ -39,13 +44,29 @@ struct AuthView: View {
                             TextField("القسم الأول (مثال: الطوارئ)", text: $department).fieldBox()
                             TextField("اسمك", text: $name).textContentType(.name).fieldBox()
                         }
+                        if mode == .login {
+                            Picker("طريقة الدخول", selection: $byNumber) { Text("بالرقم الوظيفي").tag(true); Text("بالبريد (المدير)").tag(false) }
+                                .pickerStyle(.segmented)
+                        }
+                        if mode == .signup {
+                            Text("اختياري: رئيسة التمريض للقسم").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                            TextField("اسم رئيسة التمريض", text: $hnName).fieldBox()
+                            TextField("رقمها الوظيفي", text: $hnNumber).keyboardType(.asciiCapableNumberPad).digitsOnly($hnNumber).fieldBox()
+                        }
                         if mode == .join {
                             TextField("رمز الدعوة", text: $code).textInputAutocapitalization(.characters).autocorrectionDisabled().fieldBox()
                             Text("يعطيك المشرف رمز الدعوة بعد إضافتك في النظام.").font(.caption).foregroundStyle(.secondary)
                         }
-                        TextField("البريد الإلكتروني", text: $email)
+                        if mode == .login && byNumber {
+                            TextField("رمز المستشفى", text: $hospitalCode).textInputAutocapitalization(.characters).autocorrectionDisabled()
+                                .environment(\.layoutDirection, .leftToRight).fieldBox()
+                            TextField("الرقم الوظيفي", text: $number).keyboardType(.asciiCapableNumberPad).digitsOnly($number)
+                                .environment(\.layoutDirection, .leftToRight).fieldBox()
+                        } else {
+                        TextField(mode == .join ? "البريد الإلكتروني (اختياري)" : "البريد الإلكتروني", text: $email)
                             .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .environment(\.layoutDirection, .leftToRight).fieldBox()
+                        }
                         SecureField("كلمة المرور (8 أحرف على الأقل)", text: $password)
                             .textContentType(mode == .login ? .password : .newPassword).fieldBox()
                     }
@@ -75,8 +96,8 @@ struct AuthView: View {
     private var valid: Bool {
         let base = email.contains("@") && password.count >= 8
         switch mode {
-        case .login: return email.contains("@") && !password.isEmpty
-        case .join: return base && code.count >= 4
+        case .login: return byNumber ? (hospitalCode.count >= 4 && !number.isEmpty && !password.isEmpty) : (email.contains("@") && !password.isEmpty)
+        case .join: return password.count >= 8 && code.count >= 4 && (email.isEmpty || email.contains("@"))
         case .signup: return base && !hospital.isEmpty && !name.isEmpty
         }
     }
@@ -87,9 +108,11 @@ struct AuthView: View {
         let e = email.trimmingCharacters(in: .whitespaces).lowercased()
         do {
             switch mode {
-            case .login: try await session.login(email: e, password: password)
+            case .login:
+                if byNumber { try await session.loginEmployee(hospitalCode: hospitalCode.trimmingCharacters(in: .whitespaces).uppercased(), number: number.asciiDigits, password: password) }
+                else { try await session.login(email: e, password: password) }
             case .join: try await session.join(code: code.asciiDigits.uppercased(), email: e, password: password)
-            case .signup: try await session.signup(hospital: hospital, department: department.isEmpty ? "القسم الرئيسي" : department, name: name, email: e, password: password)
+            case .signup: try await session.signup(hospital: hospital, department: department.isEmpty ? "القسم الرئيسي" : department, name: name, email: e, password: password, headNurseName: hnName, headNurseNumber: hnNumber.asciiDigits)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {

@@ -43,7 +43,10 @@ struct RootView: View {
             case .autoFill: AutoFillSheet()
             }
         }
-        .task { await store.rescheduleNotifications() }
+        .task {
+            if Session.shared.me?.role == "head_nurse" { screen = .dashboard } else if Session.shared.online && !Session.shared.isManager { screen = .myShifts }
+            await store.rescheduleNotifications()
+        }
     }
 
     private func toggle(_ v: Bool) {
@@ -52,6 +55,7 @@ struct RootView: View {
 
     @ViewBuilder private var content: some View {
         switch screen {
+        case .dashboard: HeadNurseDashboard(screen: $screen, sheet: $sheet)
         case .home: HomeView(screen: $screen, sheet: $sheet)
         case .roster: RosterView(); CoverageWarnings()
         case .myShifts: MyShiftsView()
@@ -82,9 +86,10 @@ struct HeaderBar: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
             }
             .accessibilityLabel("القائمة")
+            RoleBadge(title: Session.shared.roleTitle)
             Spacer()
             Menu {
-                ForEach(store.data.settings.departments, id: \.self) { d in
+                ForEach(Session.shared.me?.role == "admin" || Session.shared.offlineMode ? store.data.settings.departments : [store.data.selectedDepartment], id: \.self) { d in
                     Button(d) { store.selectDepartment(d) }
                 }
             } label: {
@@ -136,7 +141,7 @@ struct PageHeader: View {
             if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(.orange) }
             Text(screen == .home ? "كل ما يخص مناوبات المستشفى في مكان واحد." : screen == .roster ? "عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد." : "اسحب للأسفل للتحديث.")
                 .font(.footnote).foregroundStyle(.secondary)
-            if Session.shared.isManager && [Screen.home, .roster, .employees].contains(screen) { HStack(spacing: 12) {
+            if Session.shared.isHead && [Screen.home, .dashboard, .roster, .employees].contains(screen) { HStack(spacing: 12) {
                 Button { sheet = .addEmployee } label: { Label("إضافة موظف", systemImage: "person.badge.plus") }
                     .buttonStyle(OutlineButtonStyle())
                 Button { sheet = .importRoster } label: { Label("رفع جدول", systemImage: "square.and.arrow.up") }
@@ -181,7 +186,7 @@ struct SideDrawer: View {
             .padding(.vertical, 8)
             ScrollView {
                 VStack(spacing: 2) {
-                    ForEach(Session.shared.isManager ? [Screen.home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : [Screen.myShifts, .roster, .requests, .announcements, .events, .alerts]) { item(for: $0) }
+                    ForEach(Session.shared.isHead && !Session.shared.offlineMode ? [Screen.dashboard, .home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : Session.shared.isManager ? [Screen.home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : [Screen.myShifts, .roster, .requests, .announcements, .events, .alerts]) { item(for: $0) }
                 }
             }
             item(for: .portal)

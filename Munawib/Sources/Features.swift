@@ -135,6 +135,8 @@ extension AppStore {
     }
 }
 
+extension Int { var clamped: Int { self <= 0 ? 2 : self } }
+
 // MARK: - Coverage warnings
 struct CoverageWarnings: View {
     @Environment(AppStore.self) private var store
@@ -148,7 +150,10 @@ struct CoverageWarnings: View {
             HStack {
                 Stepper("نهاري ≥ \(minDay)", value: $minDay, in: 0...20)
                 Stepper("ليلي ≥ \(minNight)", value: $minNight, in: 0...20)
-            }.font(.caption)
+            }.font(.caption).disabled(!Session.shared.isHead)
+            if Session.shared.online && Session.shared.me?.isHead == true {
+                Button("حفظ الحد الأدنى للقسم") { Task { try? await Session.shared.setCoverage(minDay: minDay, minNight: minNight) } }.font(.caption).buttonStyle(.bordered)
+            }
             if !short.isEmpty {
                 ScrollView(.horizontal) {
                     HStack {
@@ -162,6 +167,7 @@ struct CoverageWarnings: View {
             }
         }
         .card()
+        .task { if let d = Session.shared.myDepartment { minDay = d.min_day ?? minDay; minNight = d.min_night ?? minNight } }
     }
 }
 
@@ -170,6 +176,7 @@ struct AutoFillSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var template = 0
     @State private var staggered = true
+    @State private var fair = true
     private let templates: [(String, [ShiftCode])] = [
         ("2 نهاري · 2 ليلي · 2 راحة", [.day, .day, .night, .night, .rest, .rest]),
         ("4 نهاري · 3 راحة", [.day, .day, .day, .day, .rest, .rest, .rest]),
@@ -179,15 +186,18 @@ struct AutoFillSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Toggle("توزيع عادل تلقائي (يوازن النهاري/الليلي/نهاية الأسبوع)", isOn: $fair)
+                if !fair {
                 Picker("قالب الدوران", selection: $template) { ForEach(templates.indices, id: \.self) { Text(templates[$0].0).tag($0) } }
                     .pickerStyle(.inline)
                 Toggle("توزيع متدرّج بين الموظفين لتغطية أفضل", isOn: $staggered)
+                }
                 Section { Text("سيتم استبدال خانات \(store.monthTitle) لكل موظفي \(store.data.selectedDepartment). يمكنك التعديل يدويًا بعدها.").font(.footnote) }
             }
             .navigationTitle("تعبئة تلقائية").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("تطبيق") { store.autoFill(pattern: templates[template].1, staggered: staggered); UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("تطبيق") { if fair { store.fairFill(minDay: Session.shared.myDepartment?.min_day ?? UserDefaults.standard.integer(forKey: "minDay").clamped, minNight: Session.shared.myDepartment?.min_night ?? max(1, UserDefaults.standard.integer(forKey: "minNight"))) } else { store.autoFill(pattern: templates[template].1, staggered: staggered) }; UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() } }
             }
         }
         .environment(\.layoutDirection, .rightToLeft)

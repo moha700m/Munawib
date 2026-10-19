@@ -96,7 +96,12 @@ async function staffIds(env, hospitalId, deptId, roles) {
 const inviteCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
 const pubUser = (u) => u && ({ id: u.id, hospital_id: u.hospital_id, department_id: u.department_id, email: u.email, name: u.name, title: u.title, employee_number: u.employee_number, role: u.role, phone: u.phone, photo: u.photo, reminder_minutes: u.reminder_minutes, invite_code: u.pw_hash ? null : u.invite_code, joined: !!u.pw_hash });
 async function session(env, u) { return { token: await signJWT(env, { sub: u.id, hid: u.hospital_id, role: u.role }), user: pubUser(u) }; }
-const isMgr = (me) => me.role === 'admin' || me.role === 'supervisor';
+const isMgr = (me) => ['admin', 'head_nurse', 'supervisor'].includes(me.role);
+const ROLES = ['employee', 'supervisor', 'head_nurse', 'admin'];
+async function audit(env, me, deptId, action, detail) {
+  await env.DB.prepare('INSERT INTO audit_log VALUES(?,?,?,?,?,?,?,?)').bind(uid(), me.hospital_id, deptId || me.department_id || null, me.id, me.name, action, typeof detail === 'string' ? detail : JSON.stringify(detail), now()).run();
+}
+const hospCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
 
 async function route(req, env) {
   const url = new URL(req.url); const p = url.pathname.replace(/\/+$/, '') || '/'; const m = req.method;
@@ -111,23 +116,37 @@ async function route(req, env) {
     need(!(await DB.prepare('SELECT 1 FROM users WHERE email=?').bind(email.toLowerCase()).first()), 409, 'email exists');
     const hid = uid(), did = uid(), u = uid();
     await DB.batch([
-      DB.prepare('INSERT INTO hospitals VALUES(?,?,?)').bind(hid, hospital, now()),
-      DB.prepare('INSERT INTO departments VALUES(?,?,?)').bind(did, hid, department || 'القسم الرئيسي'),
+      DB.prepare('INSERT INTO hospitals(id,name,created_at,code) VALUES(?,?,?,?)').bind(hid, hospital, now(), hospCode()),
+      DB.prepare('INSERT INTO departments(id,hospital_id,name) VALUES(?,?,?)').bind(did, hid, department || 'القسم الرئيسي'),
       DB.prepare('INSERT INTO users(id,hospital_id,department_id,email,pw_hash,name,title,role,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(u, hid, did, email.toLowerCase(), await hashPw(password), name, 'Admin', 'admin', now()),
     ]);
-    return json(await session(env, await DB.prepare('SELECT * FROM users WHERE id=?').bind(u).first()), 201);
+    const out = await session(env, await DB.prepare('SELECT * FROM users WHERE id=?').bind(u).first());
+    if (body.head_nurse?.name) {
+      const hn = uid(), code = inviteCode();
+      await DB.prepare("INSERT INTO users(id,hospital_id,department_id,name,title,employee_number,role,invite_code,created_at) VALUES(?,?,?,?,?,?,'head_nurse',?,?)")
+        .bind(hn, hid, did, body.head_nurse.name, 'Head Nurse', String(body.head_nurse.employee_number || ''), code, now()).run();
+      out.head_nurse_invite = code;
+    }
+    out.hospital_code = (await DB.prepare('SELECT code FROM hospitals WHERE id=?').bind(hid).first()).code;
+    return json(out, 201);
   }
   if (p === '/auth/login' && m === 'POST') {
-    const u = await DB.prepare('SELECT * FROM users WHERE email=?').bind((body.email || '').toLowerCase()).first();
+    let u;
+    if (body.employee_number || body.employeeNumber) {
+      const hc = String(body.hospital_code || body.hospitalCode || body.hospital_id || '').trim();
+      const h = await DB.prepare('SELECT id FROM hospitals WHERE code=? OR id=?').bind(hc.toUpperCase(), hc).first();
+      need(h, 401, 'invalid credentials');
+      u = await DB.prepare('SELECT * FROM users WHERE hospital_id=? AND employee_number=?').bind(h.id, String(body.employee_number || body.employeeNumber).trim()).first();
+    } else u = await DB.prepare('SELECT * FROM users WHERE email=?').bind((body.email || '').toLowerCase()).first();
     need(u && await verifyPw(body.password || '', u.pw_hash), 401, 'invalid credentials');
     return json(await session(env, u));
   }
   if (p === '/auth/join' && m === 'POST') {
-    const { code, email, password } = body; need(code && email && password && password.length >= 8, 400, 'missing fields');
+    const { code, password } = body; const email = body.email || null; need(code && password && password.length >= 8, 400, 'missing fields');
     const u = await DB.prepare('SELECT * FROM users WHERE invite_code=? AND pw_hash IS NULL').bind(code.toUpperCase().trim()).first();
     need(u, 404, 'invalid invite');
-    need(!(await DB.prepare('SELECT 1 FROM users WHERE email=? AND id<>?').bind(email.toLowerCase(), u.id).first()), 409, 'email exists');
-    await DB.prepare('UPDATE users SET email=?,pw_hash=? WHERE id=?').bind(email.toLowerCase(), await hashPw(password), u.id).run();
+    if (email) need(!(await DB.prepare('SELECT 1 FROM users WHERE email=? AND id<>?').bind(email.toLowerCase(), u.id).first()), 409, 'email exists');
+    await DB.prepare('UPDATE users SET email=?,pw_hash=? WHERE id=?').bind(email ? email.toLowerCase() : null, await hashPw(password), u.id).run();
     return json(await session(env, await DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first()));
   }
   if (p.startsWith('/invite/') && m === 'GET') {
@@ -141,9 +160,13 @@ async function route(req, env) {
   const me = await DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first(); need(me, 401, 'unauthorized');
   const H = me.hospital_id;
   const mgr = () => need(isMgr(me), 403, 'forbidden');
+  const inDept = (d) => me.role === 'admin' || (d && d === me.department_id);
+  const mgrOf = (d) => need(isMgr(me) && inDept(d), 403, 'forbidden');
+  const headOf = (d) => need((me.role === 'admin') || (me.role === 'head_nurse' && d === me.department_id), 403, 'forbidden');
+  const userDept = async (id) => (await DB.prepare('SELECT department_id FROM users WHERE id=? AND hospital_id=?').bind(id, H).first())?.department_id;
   const seg = p.split('/').filter(Boolean);
 
-  if (p === '/me' && m === 'GET') return json({ user: pubUser(me), hospital: await DB.prepare('SELECT * FROM hospitals WHERE id=?').bind(H).first() });
+  if (p === '/me' && m === 'GET') return json({ user: pubUser(me), hospital: await DB.prepare('SELECT id,name,CASE WHEN ? THEN code END code FROM hospitals WHERE id=?').bind(isMgr(me) ? 1 : 0, H).first() });
   if (p === '/me' && m === 'PATCH') {
     await DB.prepare('UPDATE users SET name=COALESCE(?,name),phone=COALESCE(?,phone),photo=COALESCE(?,photo),reminder_minutes=COALESCE(?,reminder_minutes) WHERE id=?')
       .bind(body.name ?? null, body.phone ?? null, body.photo ?? null, body.reminder_minutes ?? null, me.id).run();
@@ -162,38 +185,59 @@ async function route(req, env) {
       q('SELECT * FROM announcements WHERE hospital_id=? ORDER BY created_at DESC LIMIT 100', H),
       q('SELECT * FROM notification_log WHERE user_id=? ORDER BY created_at DESC LIMIT 50', me.id),
     ]);
-    return json({ me: pubUser(me), hospital, departments, users: users.map(u => isMgr(me) ? pubUser(u) : { ...pubUser(u), invite_code: null, email: null }), rosters: rosters.map(r => ({ ...r, grid: JSON.parse(r.grid || '{}') })), attendance, events, leaves, swaps, announcements, notifications });
+    const audit_log = (me.role === 'admin' || me.role === 'head_nurse') ? (await DB.prepare(`SELECT * FROM audit_log WHERE hospital_id=? ${me.role === 'admin' ? '' : 'AND department_id=?'} ORDER BY created_at DESC LIMIT 200`).bind(...(me.role === 'admin' ? [H] : [H, me.department_id])).all()).results : [];
+    if (hospital && !isMgr(me)) hospital.code = null;
+    return json({ audit_log, me: pubUser(me), hospital, departments, users: users.map(u => (isMgr(me) && inDept(u.department_id)) ? pubUser(u) : { ...pubUser(u), invite_code: null, email: null }), rosters: rosters.map(r => ({ ...r, grid: JSON.parse(r.grid || '{}') })), attendance, events, leaves, swaps, announcements, notifications });
   }
-  if (p === '/departments' && m === 'POST') { mgr(); const id = uid(); await DB.prepare('INSERT INTO departments VALUES(?,?,?)').bind(id, H, body.name).run(); return json({ id, name: body.name }, 201); }
-  if (seg[0] === 'departments' && seg[1] && m === 'DELETE') { mgr(); await DB.prepare('DELETE FROM departments WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
+  if (p === '/departments' && m === 'POST') { need(me.role === 'admin', 403, 'forbidden'); const id = uid(); await DB.prepare('INSERT INTO departments(id,hospital_id,name) VALUES(?,?,?)').bind(id, H, body.name).run(); await audit(env, me, id, 'department.create', body.name); return json({ id, name: body.name }, 201); }
+  if (seg[0] === 'departments' && seg[1] && m === 'PATCH') {
+    headOf(seg[1]);
+    await DB.prepare('UPDATE departments SET min_day=COALESCE(?,min_day),min_night=COALESCE(?,min_night),name=COALESCE(?,name) WHERE id=? AND hospital_id=?').bind(body.min_day ?? null, body.min_night ?? null, me.role === 'admin' ? (body.name ?? null) : null, seg[1], H).run();
+    await audit(env, me, seg[1], 'department.update', body); return json({ ok: true });
+  }
+  if (seg[0] === 'departments' && seg[1] && m === 'DELETE') { need(me.role === 'admin', 403, 'forbidden'); await audit(env, me, seg[1], 'department.delete', seg[1]); await DB.prepare('DELETE FROM departments WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
 
   if (p === '/employees' && m === 'POST') {
-    mgr(); const id = uid(), code = inviteCode();
-    const role = me.role === 'admin' && ['supervisor', 'employee', 'admin'].includes(body.role) ? body.role : 'employee';
+    const dept = body.department_id || me.department_id; headOf(dept); const id = uid(), code = inviteCode();
+    const allowed = me.role === 'admin' ? ROLES : ['employee', 'supervisor'];
+    const role = allowed.includes(body.role) ? body.role : 'employee';
+    if (body.employee_number) need(!(await DB.prepare('SELECT 1 FROM users WHERE hospital_id=? AND employee_number=?').bind(H, String(body.employee_number)).first()), 409, 'employee number exists');
     await DB.prepare('INSERT INTO users(id,hospital_id,department_id,name,title,employee_number,role,invite_code,phone,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-      .bind(id, H, body.department_id || me.department_id, body.name, body.title || '', body.employee_number || '', role, code, body.phone || '', now()).run();
+      .bind(id, H, dept, body.name, body.title || '', String(body.employee_number || ''), role, code, body.phone || '', now()).run();
+    await audit(env, me, dept, 'employee.create', `${body.name} (${role})`);
     return json({ user: pubUser(await DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first()), invite_code: code, invite_link: `munawib://join?code=${code}` }, 201);
   }
   if (seg[0] === 'employees' && seg[1] && m === 'PATCH') {
-    mgr();
+    headOf(await userDept(seg[1])); if (body.department_id && me.role !== 'admin') need(body.department_id === me.department_id, 403, 'forbidden');
     await DB.prepare('UPDATE users SET name=COALESCE(?,name),title=COALESCE(?,title),employee_number=COALESCE(?,employee_number),department_id=COALESCE(?,department_id),phone=COALESCE(?,phone),role=COALESCE(?,role) WHERE id=? AND hospital_id=?')
       .bind(body.name ?? null, body.title ?? null, body.employee_number ?? null, body.department_id ?? null, body.phone ?? null, me.role === 'admin' ? (body.role ?? null) : null, seg[1], H).run();
+    await audit(env, me, await userDept(seg[1]), 'employee.update', { id: seg[1], ...body });
     return json({ user: pubUser(await DB.prepare('SELECT * FROM users WHERE id=?').bind(seg[1]).first()) });
   }
-  if (seg[0] === 'employees' && seg[1] && m === 'DELETE') { mgr(); need(seg[1] !== me.id, 400, 'cannot delete self'); await DB.prepare('DELETE FROM users WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
+  if (seg[0] === 'employees' && seg[2] === 'role' && m === 'POST') {
+    const d = await userDept(seg[1]); headOf(d); need(seg[1] !== me.id, 400, 'cannot change own role');
+    const allowed = me.role === 'admin' ? ROLES : ['employee', 'supervisor'];
+    const t = await DB.prepare('SELECT role,name FROM users WHERE id=?').bind(seg[1]).first(); need(t, 404, 'not found');
+    need(allowed.includes(body.role) && (me.role === 'admin' || ['employee', 'supervisor'].includes(t.role)), 403, 'forbidden');
+    await DB.prepare('UPDATE users SET role=? WHERE id=?').bind(body.role, seg[1]).run();
+    await audit(env, me, d, 'employee.role', `${t.name}: ${t.role} → ${body.role}`); return json({ ok: true });
+  }
+  if (seg[0] === 'employees' && seg[1] && m === 'DELETE') { const d0 = await userDept(seg[1]); headOf(d0); need(seg[1] !== me.id, 400, 'cannot delete self'); await audit(env, me, d0, 'employee.delete', seg[1]); await DB.prepare('DELETE FROM users WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
 
   if (p === '/rosters' && m === 'PUT') {
-    mgr(); const { department_id, year, month, grid } = body; need(department_id && year && month, 400, 'missing fields');
+    const { department_id, year, month, grid } = body; need(department_id && year && month, 400, 'missing fields'); mgrOf(department_id);
     const ex = await DB.prepare('SELECT id FROM rosters WHERE department_id=? AND year=? AND month=?').bind(department_id, year, month).first();
     const id = ex?.id || uid();
     await DB.prepare(`INSERT INTO rosters(id,hospital_id,department_id,year,month,status,grid,day_start,night_start,updated_at) VALUES(?,?,?,?,?,'draft',?,?,?,?)
       ON CONFLICT(department_id,year,month) DO UPDATE SET grid=excluded.grid,status='draft',day_start=excluded.day_start,night_start=excluded.night_start,updated_at=excluded.updated_at`)
       .bind(id, H, department_id, year, month, JSON.stringify(grid || {}), body.day_start ?? 5, body.night_start ?? 17, now()).run();
+    await audit(env, me, department_id, 'roster.save', `${month}/${year}`);
     return json({ id, status: 'draft' });
   }
   if (seg[0] === 'rosters' && seg[2] === 'status' && m === 'POST') {
-    mgr(); const st = body.status; need(['draft', 'review', 'approved'].includes(st), 400, 'bad status');
-    const r = await DB.prepare('SELECT * FROM rosters WHERE id=? AND hospital_id=?').bind(seg[1], H).first(); need(r, 404, 'not found');
+    const st = body.status; need(['draft', 'review', 'approved'].includes(st), 400, 'bad status');
+    const r = await DB.prepare('SELECT * FROM rosters WHERE id=? AND hospital_id=?').bind(seg[1], H).first(); need(r, 404, 'not found'); mgrOf(r.department_id);
+    await audit(env, me, r.department_id, 'roster.' + st, `${r.month}/${r.year}`);
     await DB.prepare('UPDATE rosters SET status=?,updated_at=? WHERE id=?').bind(st, now(), r.id).run();
     let push = [];
     if (st === 'approved') push = await pushToUsers(env, H, await staffIds(env, H, r.department_id), 'تم اعتماد الجدول ✅', `جدول ${r.month}/${r.year} أصبح معتمدًا. افتح مِناوب لمشاهدة مناوباتك.`, { type: 'roster', id: r.id });
@@ -201,35 +245,41 @@ async function route(req, env) {
   }
 
   if (p === '/attendance' && m === 'POST') {
-    const target = isMgr(me) && body.user_id ? body.user_id : me.id; const id = uid();
+    let target = me.id; if (body.user_id && body.user_id !== me.id) { mgrOf(await userDept(body.user_id)); target = body.user_id; } const id = uid();
+    await audit(env, me, await userDept(target), 'attendance.add', `${body.date} ${body.kind} ${body.hours}`);
     await DB.prepare('INSERT INTO attendance VALUES(?,?,?,?,?,?,?)').bind(id, H, target, body.date, body.kind || 'H', body.hours || 0, body.note || '').run();
     return json({ id }, 201);
   }
-  if (seg[0] === 'attendance' && seg[1] && m === 'DELETE') { mgr(); await DB.prepare('DELETE FROM attendance WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
-  if (p === '/events' && m === 'POST') { mgr(); const id = uid(); await DB.prepare('INSERT INTO events VALUES(?,?,?,?,?,?)').bind(id, H, body.title, body.date, body.location || '', body.audience || '').run(); return json({ id }, 201); }
-  if (seg[0] === 'events' && seg[1] && m === 'DELETE') { mgr(); await DB.prepare('DELETE FROM events WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
+  if (seg[0] === 'attendance' && seg[1] && m === 'DELETE') { const a = await DB.prepare('SELECT user_id FROM attendance WHERE id=? AND hospital_id=?').bind(seg[1], H).first(); need(a, 404, 'not found'); mgrOf(await userDept(a.user_id)); await audit(env, me, null, 'attendance.delete', seg[1]); await DB.prepare('DELETE FROM attendance WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
+  if (p === '/events' && m === 'POST') { mgr(); const id = uid(); await audit(env, me, null, 'event.create', body.title); await DB.prepare('INSERT INTO events VALUES(?,?,?,?,?,?)').bind(id, H, body.title, body.date, body.location || '', body.audience || '').run(); return json({ id }, 201); }
+  if (seg[0] === 'events' && seg[1] && m === 'DELETE') { mgr(); await audit(env, me, null, 'event.delete', seg[1]); await DB.prepare('DELETE FROM events WHERE id=? AND hospital_id=?').bind(seg[1], H).run(); return json({ ok: true }); }
 
   if (p === '/leaves' && m === 'POST') {
     const id = uid(); await DB.prepare('INSERT INTO leave_requests(id,hospital_id,user_id,start_date,end_date,reason,created_at) VALUES(?,?,?,?,?,?,?)').bind(id, H, me.id, body.start_date, body.end_date, body.reason || '', now()).run();
-    const push = await pushToUsers(env, H, (await staffIds(env, H, null, ['admin', 'supervisor'])).filter(x => x !== me.id), 'طلب إجازة جديد', `${me.name}: ${body.start_date} → ${body.end_date}`, { type: 'leave', id });
+    await audit(env, me, me.department_id, 'leave.request', `${body.start_date}→${body.end_date}`);
+    const push = await pushToUsers(env, H, [...new Set([...(await staffIds(env, H, me.department_id, ['head_nurse', 'supervisor'])), ...(await staffIds(env, H, null, ['admin']))])].filter(x => x !== me.id), 'طلب إجازة جديد', `${me.name}: ${body.start_date} → ${body.end_date}`, { type: 'leave', id });
     return json({ id, push }, 201);
   }
   if (seg[0] === 'leaves' && seg[2] === 'decision' && m === 'POST') {
-    mgr(); const st = body.approve ? 'approved' : 'rejected';
+    const st = body.approve ? 'approved' : 'rejected';
     const l = await DB.prepare('SELECT * FROM leave_requests WHERE id=? AND hospital_id=?').bind(seg[1], H).first(); need(l, 404, 'not found');
+    const ld = await userDept(l.user_id); mgrOf(ld); await audit(env, me, ld, 'leave.' + st, `${l.start_date}→${l.end_date}`);
     await DB.prepare('UPDATE leave_requests SET status=?,decided_by=? WHERE id=?').bind(st, me.id, l.id).run();
     const push = await pushToUsers(env, H, [l.user_id], st === 'approved' ? 'تمت الموافقة على إجازتك ✅' : 'تم رفض طلب الإجازة', `${l.start_date} → ${l.end_date}`, { type: 'leave', id: l.id });
     return json({ ok: true, status: st, push });
   }
   if (p === '/swaps' && m === 'POST') {
     const id = uid(); await DB.prepare('INSERT INTO swap_requests(id,hospital_id,from_user,to_user,date,note,created_at) VALUES(?,?,?,?,?,?,?)').bind(id, H, me.id, body.to_user, body.date, body.note || '', now()).run();
-    const targets = [...new Set([body.to_user, ...(await staffIds(env, H, null, ['admin', 'supervisor']))])].filter(x => x && x !== me.id);
+    need((await userDept(body.to_user)) === me.department_id, 400, 'colleague must be in your department');
+    await audit(env, me, me.department_id, 'swap.request', body.date);
+    const targets = [...new Set([body.to_user, ...(await staffIds(env, H, me.department_id, ['head_nurse', 'supervisor'])), ...(await staffIds(env, H, null, ['admin']))])].filter(x => x && x !== me.id);
     const push = await pushToUsers(env, H, targets, 'طلب تبديل مناوبة', `${me.name} يطلب تبديل مناوبة يوم ${body.date}`, { type: 'swap', id });
     return json({ id, push }, 201);
   }
   if (seg[0] === 'swaps' && seg[2] === 'decision' && m === 'POST') {
-    mgr(); const st = body.approve ? 'approved' : 'rejected';
+    const st = body.approve ? 'approved' : 'rejected';
     const s = await DB.prepare('SELECT * FROM swap_requests WHERE id=? AND hospital_id=?').bind(seg[1], H).first(); need(s, 404, 'not found');
+    const sd = await userDept(s.from_user); mgrOf(sd); await audit(env, me, sd, 'swap.' + st, s.date);
     await DB.prepare('UPDATE swap_requests SET status=?,decided_by=? WHERE id=?').bind(st, me.id, s.id).run();
     if (st === 'approved') {
       const [y, mo, d] = s.date.split('-').map(Number);
@@ -241,9 +291,10 @@ async function route(req, env) {
     return json({ ok: true, status: st, push });
   }
   if (p === '/announcements' && m === 'POST') {
-    mgr(); const id = uid();
-    await DB.prepare('INSERT INTO announcements VALUES(?,?,?,?,?,?,?)').bind(id, H, body.department_id || null, me.name, body.title, body.body || '', now()).run();
-    const push = await pushToUsers(env, H, (await staffIds(env, H, body.department_id || null)).filter(x => x !== me.id), `📢 ${body.title}`, body.body || '', { type: 'announcement', id });
+    mgr(); const id = uid(); const adept = me.role === 'admin' ? (body.department_id || null) : me.department_id;
+    await audit(env, me, adept, 'announcement', body.title);
+    await DB.prepare('INSERT INTO announcements VALUES(?,?,?,?,?,?,?)').bind(id, H, adept, me.name, body.title, body.body || '', now()).run();
+    const push = await pushToUsers(env, H, (await staffIds(env, H, adept)).filter(x => x !== me.id), `📢 ${body.title}`, body.body || '', { type: 'announcement', id });
     return json({ id, push }, 201);
   }
   if (p === '/devices' && m === 'POST') {
@@ -256,6 +307,19 @@ async function route(req, env) {
     need(env.APNS_KEY, 503, 'APNs not configured');
     const results = await pushToUsers(env, H, [me.id], 'اختبار التنبيهات 🔔', 'وصل تنبيه حقيقي من خادم مِناوب إلى جهازك.', { type: 'test' });
     return json({ sent: results.filter(r => r.status === 200).length, devices: results.length, results });
+  }
+  if (p === '/push/custom' && m === 'POST') {
+    need(me.role === 'admin' || me.role === 'head_nurse', 403, 'forbidden'); need(body.title, 400, 'missing fields');
+    let ids = Array.isArray(body.user_ids) && body.user_ids.length ? body.user_ids : await staffIds(env, H, me.role === 'admin' ? (body.department_id || null) : me.department_id);
+    if (me.role !== 'admin') { const ok = new Set(await staffIds(env, H, me.department_id)); ids = ids.filter(x => ok.has(x)); }
+    await audit(env, me, me.role === 'admin' ? body.department_id : me.department_id, 'push.custom', `${body.title} → ${ids.length}`);
+    const results = await pushToUsers(env, H, ids, body.title, body.body || '', { type: 'custom' });
+    return json({ recipients: ids.length, sent: results.filter(r => r.status === 200).length, devices: results.length });
+  }
+  if (p === '/audit' && m === 'GET') {
+    need(me.role === 'admin' || me.role === 'head_nurse', 403, 'forbidden');
+    const r = me.role === 'admin' ? await DB.prepare('SELECT * FROM audit_log WHERE hospital_id=? ORDER BY created_at DESC LIMIT 500').bind(H).all() : await DB.prepare('SELECT * FROM audit_log WHERE hospital_id=? AND department_id=? ORDER BY created_at DESC LIMIT 500').bind(H, me.department_id).all();
+    return json(r.results);
   }
   if (p === '/notifications' && m === 'GET') return json((await DB.prepare('SELECT * FROM notification_log WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(me.id).all()).results);
   throw new HttpError(404, 'not found');

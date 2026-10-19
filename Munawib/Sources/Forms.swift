@@ -10,6 +10,7 @@ struct EmployeeForm: View {
     @State private var dept = ""
     @State private var phone = ""
     @State private var role = "employee"
+    @State private var originalRole = "employee"
     @State private var invite: NewEmployeeResponse?
     @State private var error: String?
 
@@ -20,9 +21,20 @@ struct EmployeeForm: View {
                 TextField("المسمى الوظيفي", text: $title)
                 TextField("الرقم الوظيفي", text: $number).keyboardType(.asciiCapableNumberPad).digitsOnly($number)
                 TextField("الجوال", text: $phone).keyboardType(.phonePad)
-                if employee == nil && Session.shared.online && Session.shared.me?.role == "admin" {
+                if Session.shared.online && Session.shared.me?.isHead == true {
                     Picker("الصلاحية", selection: $role) {
-                        Text("موظف").tag("employee"); Text("مشرف").tag("supervisor"); Text("مدير").tag("admin")
+                        Text("موظف").tag("employee"); Text("مشرف").tag("supervisor")
+                        if Session.shared.me?.role == "admin" { Text("رئيسة تمريض").tag("head_nurse"); Text("مدير").tag("admin") }
+                    }
+                    .onChange(of: role) { _, r in
+                        guard let employee, r != originalRole else { return }
+                        Task { do { try await Session.shared.setRole(employee.id, role: r); originalRole = r } catch { self.error = (error as? LocalizedError)?.errorDescription } }
+                    }
+                    if let employee, let u = Session.shared.user(employee.id.uuidString.lowercased()), let c = u.invite_code {
+                        Section("رمز الدعوة (لم ينضم بعد)") {
+                            Text(c).font(.title2.monospaced().bold()).textSelection(.enabled)
+                            ShareLink(item: "انضم إلى مِناوب برمز الدعوة \(c)\nmunawib://join?code=\(c)") { Label("مشاركة", systemImage: "square.and.arrow.up") }
+                        }
                     }
                 }
                 if let invite {
@@ -55,7 +67,7 @@ struct EmployeeForm: View {
             }
             .onAppear {
                 dept = employee?.department ?? store.data.selectedDepartment
-                if let e = employee { name = e.name; title = e.title; number = e.employeeNumber; phone = e.phone }
+                if let e = employee { name = e.name; title = e.title; number = e.employeeNumber; phone = e.phone; let r = Session.shared.user(e.id.uuidString.lowercased())?.role ?? "employee"; role = r; originalRole = r }
             }
         }
         .keyboardDone()

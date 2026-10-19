@@ -297,7 +297,7 @@ struct SettingsView: View {
             NotificationTestPanel()
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
-            Text("مِناوب 2.0 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
+            Text("مِناوب 2.1 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

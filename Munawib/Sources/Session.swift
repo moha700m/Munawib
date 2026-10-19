@@ -21,6 +21,11 @@ final class Session {
 
     var isLoggedIn: Bool { offlineMode || (APIClient.shared.token != nil && me != nil) }
     var isManager: Bool { offlineMode || (me?.isManager ?? false) }
+    var isHead: Bool { offlineMode || (me?.isHead ?? false) }
+    var roleTitle: String { offlineMode ? "وضع محلي" : (me?.roleTitle ?? "") }
+    var savedHospitalCode: String { get { UserDefaults.standard.string(forKey: "hospitalCode") ?? "" } set { UserDefaults.standard.set(newValue, forKey: "hospitalCode") } }
+    var signupInfo: String?
+    var myDepartment: RDepartment? { remote?.departments.first { $0.id == me?.department_id } }
 
     private static var cacheURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("remote-cache.json")
@@ -33,16 +38,37 @@ final class Session {
     }
 
     // MARK: Auth
-    func signup(hospital: String, department: String, name: String, email: String, password: String) async throws {
-        let r: AuthResponse = try await APIClient.shared.send("POST", "auth/signup", ["hospital": hospital, "department": department, "name": name, "email": email, "password": password])
+    func signup(hospital: String, department: String, name: String, email: String, password: String, headNurseName: String = "", headNurseNumber: String = "") async throws {
+        var b: [String: Any] = ["hospital": hospital, "department": department, "name": name, "email": email, "password": password]
+        if !headNurseName.isEmpty { b["head_nurse"] = ["name": headNurseName, "employee_number": headNurseNumber] }
+        let r: AuthResponse = try await APIClient.shared.send("POST", "auth/signup", b)
+        if let c = r.hospital_code { savedHospitalCode = c; signupInfo = "رمز المستشفى: \(c)" + (r.head_nurse_invite.map { "\nدعوة رئيسة التمريض: \($0)" } ?? "") }
         try await finishAuth(r)
+    }
+    func loginEmployee(hospitalCode: String, number: String, password: String) async throws {
+        let r: AuthResponse = try await APIClient.shared.send("POST", "auth/login", ["hospital_code": hospitalCode, "employee_number": number, "password": password])
+        savedHospitalCode = hospitalCode
+        try await finishAuth(r)
+    }
+    func customPush(title: String, body: String, userIDs: [String]) async throws -> String {
+        struct R: Decodable { var recipients: Int; var sent: Int; var devices: Int }
+        let r: R = try await APIClient.shared.send("POST", "push/custom", ["title": title, "body": body, "user_ids": userIDs])
+        try? await refresh()
+        return "أُرسل إلى \(r.recipients) موظف (\(r.sent) من \(r.devices) جهاز)"
+    }
+    func setRole(_ id: UUID, role: String) async throws { try await APIClient.shared.call("POST", "employees/\(id.uuidString.lowercased())/role", ["role": role]); try? await refresh() }
+    func setCoverage(minDay: Int, minNight: Int) async throws {
+        guard online, let d = deptID(store?.data.selectedDepartment ?? "") else { return }
+        try await APIClient.shared.call("PATCH", "departments/\(d)", ["min_day": minDay, "min_night": minNight]); try? await refresh()
     }
     func login(email: String, password: String) async throws {
         let r: AuthResponse = try await APIClient.shared.send("POST", "auth/login", ["email": email, "password": password])
         try await finishAuth(r)
     }
     func join(code: String, email: String, password: String) async throws {
-        let r: AuthResponse = try await APIClient.shared.send("POST", "auth/join", ["code": code, "email": email, "password": password])
+        var b: [String: Any] = ["code": code, "password": password]
+        if !email.isEmpty { b["email"] = email }
+        let r: AuthResponse = try await APIClient.shared.send("POST", "auth/join", b)
         try await finishAuth(r)
     }
     private func finishAuth(_ r: AuthResponse) async throws {
@@ -119,7 +145,9 @@ final class Session {
             guard let date = ISO8601DateFormatter().date(from: e.date) ?? Self.parseDay(e.date) else { return nil }
             return HospitalEvent(id: UUID(uuidString: e.id) ?? UUID(), title: e.title, date: date, location: e.location ?? "", audience: e.audience ?? "")
         }
-        if let n = b.me.employee_number, !b.me.isManager { d.settings.loggedInEmployeeNumber = n }
+        if let n = b.me.employee_number, !n.isEmpty { d.settings.loggedInEmployeeNumber = n }
+        if b.me.role != "admin", !deptName(b.me.department_id).isEmpty { d.selectedDepartment = deptName(b.me.department_id) }
+        if let c = b.hospital?.code { savedHospitalCode = c }
         if let m = b.me.reminder_minutes { d.settings.reminderMinutesBefore = m }
         store.data = d
     }
