@@ -108,6 +108,7 @@ async function route(req, env) {
   if (m === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
   const body = ['POST', 'PUT', 'PATCH'].includes(m) ? await req.json().catch(() => ({})) : {};
   const DB = env.DB;
+  if (p === '/admin' || p === '/admin/index.html') return new Response(typeof ADMIN_HTML === 'string' ? ADMIN_HTML : 'admin not bundled', { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-frame-options': 'DENY' } });
   if (p === '/' || p === '/health') return json({ ok: true, service: 'munawib-api', apns: !!env.APNS_KEY });
 
   if (p === '/auth/signup' && m === 'POST') {
@@ -320,6 +321,10 @@ async function route(req, env) {
     need(me.role === 'admin' || me.role === 'head_nurse', 403, 'forbidden');
     const r = me.role === 'admin' ? await DB.prepare('SELECT * FROM audit_log WHERE hospital_id=? ORDER BY created_at DESC LIMIT 500').bind(H).all() : await DB.prepare('SELECT * FROM audit_log WHERE hospital_id=? AND department_id=? ORDER BY created_at DESC LIMIT 500').bind(H, me.department_id).all();
     return json(r.results);
+  }
+  if (p === '/super/hospitals' && m === 'GET') {
+    need(me.email && me.email === (env.OWNER_EMAIL || 'm.alzhrani977@gmail.com') && me.role === 'admin', 403, 'forbidden');
+    return json((await DB.prepare(`SELECT h.id,h.name,h.code,h.created_at,(SELECT count(*) FROM departments d WHERE d.hospital_id=h.id) departments,(SELECT count(*) FROM users u WHERE u.hospital_id=h.id) users,(SELECT count(*) FROM device_tokens t JOIN users u ON u.id=t.user_id WHERE u.hospital_id=h.id) devices FROM hospitals h ORDER BY h.created_at DESC`).all()).results);
   }
   if (p === '/notifications' && m === 'GET') return json((await DB.prepare('SELECT * FROM notification_log WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(me.id).all()).results);
   throw new HttpError(404, 'not found');
