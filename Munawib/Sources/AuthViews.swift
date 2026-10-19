@@ -216,7 +216,7 @@ struct SignupWizard: View {
         .navigationTitle("تسجيل مستشفى جديد").navigationBarTitleDisplayMode(.inline)
         .keyboardDone()
         .onAppear {
-            if Demo.auth == "signup" { hospital = "مستشفى النور التخصصي"; department = "الطوارئ"; hnName = "نورة العتيبي"; hnNumber = "5002" }
+            if Demo.auth == "signup" && !ProcessInfo.processInfo.arguments.contains("-noprefill") { hospital = "مستشفى النور التخصصي"; department = "الطوارئ"; hnName = "نورة العتيبي"; hnNumber = "5002" }
             if Demo.auth == "signup2" || Demo.auth == "keyboard" { step = 2; name = "د. سارة القحطاني"; email = "admin@alnoor.sa"; password = "Demo-Pass-2026" }
             if Demo.auth == "keyboard" { number = "50" }
         }

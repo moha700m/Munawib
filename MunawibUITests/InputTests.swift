@@ -64,11 +64,9 @@ final class InputTests: XCTestCase {
     }
 
     func testSignupNumberPad() {
-        launch(["-auth", "signup"])
+        launch(["-auth", "signup", "-noprefill"])
         let hn = field("signup.hnNumber")
         hn.tap()
-        // clear demo-prefilled value
-        if let v = hn.value as? String, !v.isEmpty { hn.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: v.count)) }
         tapDigits("4321")
         assertLive(hn, "4321", "signup_hn_numberpad")
     }
