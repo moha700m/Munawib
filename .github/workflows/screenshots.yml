@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
 jobs:
   shots:
+    strategy:
+      matrix:
+        device: [iphone, ipad]
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -17,7 +20,8 @@ jobs:
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json,sys
           d=json.load(sys.stdin)['devices']
-          for pref in ['iPhone 17 Pro Max','iPhone 16 Pro Max','iPhone 16 Plus','iPhone 17 Plus']:
+          prefs={'iphone':['iPhone 17 Pro Max','iPhone 16 Pro Max','iPhone 16 Plus'],'ipad':['iPad Pro 13-inch (M5)','iPad Pro 13-inch (M4)','iPad Air 13-inch (M3)','iPad Air 13-inch (M2)']}['${{ matrix.device }}']
+          for pref in prefs:
               for rt,devs in sorted(d.items(), reverse=True):
                   for x in devs:
                       if x['name']==pref and 'iOS' in rt: print(x['udid']); sys.exit()
@@ -47,5 +51,5 @@ jobs:
           sips -g pixelWidth -g pixelHeight shots/*.png
       - uses: actions/upload-artifact@v4
         with:
-          name: screenshots
+          name: screenshots-${{ matrix.device }}
           path: shots/
