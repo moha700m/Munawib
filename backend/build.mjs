@@ -3,4 +3,5 @@ import fs from 'node:fs';
 const d = new URL('.', import.meta.url).pathname;
 fs.mkdirSync(d + 'dist', { recursive: true });
 fs.writeFileSync(d + 'dist/worker.mjs', 'const ADMIN_HTML = ' + JSON.stringify(fs.readFileSync(d + 'admin.html', 'utf8')) + ';\n' + fs.readFileSync(d + 'pages.js', 'utf8') + '\n' + fs.readFileSync(d + 'worker.js', 'utf8'));
-console.log('built dist/worker.mjs');
+fs.copyFileSync(d + 'dist/worker.mjs', d + '../selfhost/worker.mjs'); for (const f of ['schema.sql', 'migrate_v21.sql']) fs.copyFileSync(d + f, d + '../selfhost/' + f);
+console.log('built dist/worker.mjs + selfhost/');

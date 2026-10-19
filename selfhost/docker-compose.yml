@@ -1,0 +1,11 @@
+services:
+  munawib:
+    build: .
+    container_name: munawib
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./keys:/keys:ro
