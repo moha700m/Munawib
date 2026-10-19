@@ -33,9 +33,9 @@ final class InputTests: XCTestCase {
     func tapDigits(_ digits: String) {
         let arabic: [Character: String] = ["0": "٠", "1": "١", "2": "٢", "3": "٣", "4": "٤", "5": "٥", "6": "٦", "7": "٧", "8": "٨", "9": "٩"]
         for d in digits {
-            let latin = app.keys[String(d)]
+            let latin = app.keys[String(d)].firstMatch
             if latin.waitForExistence(timeout: 2) { latin.tap() }
-            else if let a = arabic[d], app.keys[a].exists { app.keys[a].tap() }
+            else if let a = arabic[d], app.keys[a].firstMatch.exists { app.keys[a].firstMatch.tap() }
             else { XCTFail("no key for \(d)") }
         }
     }
