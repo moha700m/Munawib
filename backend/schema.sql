@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS hospitals(id TEXT PRIMARY KEY,name TEXT NOT NULL,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS departments(id TEXT PRIMARY KEY,hospital_id TEXT NOT NULL,name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,hospital_id TEXT NOT NULL,department_id TEXT,email TEXT UNIQUE,pw_hash TEXT,name TEXT NOT NULL,title TEXT,employee_number TEXT,role TEXT NOT NULL DEFAULT 'employee',invite_code TEXT UNIQUE,phone TEXT,photo TEXT,reminder_minutes INTEGER DEFAULT 60,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS rosters(id TEXT PRIMARY KEY,hospital_id TEXT,department_id TEXT,year INTEGER,month INTEGER,status TEXT DEFAULT 'draft',grid TEXT DEFAULT '{}',day_start INTEGER DEFAULT 5,night_start INTEGER DEFAULT 17,updated_at INTEGER,UNIQUE(department_id,year,month));
+CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY,hospital_id TEXT,user_id TEXT,date TEXT,kind TEXT,hours REAL,note TEXT);
+CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,hospital_id TEXT,title TEXT,date TEXT,location TEXT,audience TEXT);
+CREATE TABLE IF NOT EXISTS leave_requests(id TEXT PRIMARY KEY,hospital_id TEXT,user_id TEXT,start_date TEXT,end_date TEXT,reason TEXT,status TEXT DEFAULT 'pending',decided_by TEXT,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS swap_requests(id TEXT PRIMARY KEY,hospital_id TEXT,from_user TEXT,to_user TEXT,date TEXT,note TEXT,status TEXT DEFAULT 'pending',decided_by TEXT,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS announcements(id TEXT PRIMARY KEY,hospital_id TEXT,department_id TEXT,author TEXT,title TEXT,body TEXT,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS notification_log(id TEXT PRIMARY KEY,hospital_id TEXT,user_id TEXT,title TEXT,body TEXT,result TEXT,created_at INTEGER);
+CREATE TABLE IF NOT EXISTS device_tokens(token TEXT PRIMARY KEY,user_id TEXT,env TEXT DEFAULT 'production',updated_at INTEGER);
+CREATE TABLE IF NOT EXISTS reminders_sent(key TEXT PRIMARY KEY);

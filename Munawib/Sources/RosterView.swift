@@ -5,6 +5,7 @@ struct RosterView: View {
     @Environment(AppStore.self) private var store
     @State private var pdfURL: URL?
     @State private var approving = false
+    @State private var syncMsg: String?
 
     var body: some View {
         let emps = store.departmentEmployees
@@ -24,13 +25,22 @@ struct RosterView: View {
             HStack {
                 StatusBadge(status: store.roster.status)
                 Spacer()
-                Button("حفظ المراجعة") { store.markReviewed() }.buttonStyle(.bordered)
+                Button("حفظ المراجعة") {
+                    store.markReviewed()
+                    Task { do { _ = try await Session.shared.pushRoster(store.roster, status: "review"); syncMsg = Session.shared.online ? "تم الحفظ على الخادم" : nil } catch { syncMsg = (error as? LocalizedError)?.errorDescription } }
+                }.buttonStyle(.bordered).disabled(!Session.shared.isManager)
                 Button {
-                    Task { approving = true; await store.approve(); approving = false }
+                    Task {
+                        approving = true; await store.approve()
+                        do { let n = try await Session.shared.pushRoster(store.roster, status: "approved"); if Session.shared.online { syncMsg = "تم الاعتماد وإرسال \(n) تنبيه Push" } } catch { syncMsg = (error as? LocalizedError)?.errorDescription }
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        approving = false
+                    }
                 } label: { Label("اعتماد وإرسال", systemImage: "paperplane") }
                 .buttonStyle(.borderedProminent)
-                .disabled(approving || store.roster.status == .approved)
+                .disabled(approving || store.roster.status == .approved || !Session.shared.isManager)
             }
+            if let syncMsg { Text(syncMsg).font(.caption).foregroundStyle(Theme.primary) }
             Label("اضغط على أي خانة لتغيير الرمز. أي تعديل بعد الاعتماد يعيد الجدول مسودة.", systemImage: "sparkles")
                 .font(.footnote).foregroundStyle(Theme.primary)
                 .padding(10).frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +129,9 @@ struct CodeCell: View {
                 .background(c.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         } primaryAction: {
             store.cycle(emp: emp, day: day)
+            UISelectionFeedbackGenerator().selectionChanged()
         }
+        .disabled(!Session.shared.isManager)
         .accessibilityLabel("يوم \(day): \(c.title)")
     }
 }

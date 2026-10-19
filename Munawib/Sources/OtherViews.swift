@@ -148,10 +148,11 @@ struct AlertsView: View {
                 if status == .denied {
                     Text("التنبيهات مرفوضة. فعّلها من الإعدادات ← مِناوب ← الإشعارات.").font(.caption).foregroundStyle(.orange)
                 }
-                Text("التنبيهات محلية على الجهاز (بدون خادم). الإرسال عن بُعد يحتاج خادم APNs وشهادة مطوّر مدفوعة.")
+                Text(Session.shared.online ? "متصل بخادم مِناوب: تصل تنبيهات Push لكل الفريق حتى والتطبيق مغلق." : "وضع محلي: التنبيهات من هذا الجهاز فقط. سجّل الدخول لتفعيل تنبيهات Push.")
                     .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             .card()
+            NotificationTestPanel()
             VStack(alignment: .leading, spacing: 12) {
                 Text("متى يرسل النظام؟").font(.title3.bold())
                 Label("اعتماد الجدول — بعد الاعتماد فقط.", systemImage: "paperplane")
@@ -206,10 +207,12 @@ struct PortalView: View {
                 Text("تسجيل دخول الموظف").font(.title.bold())
                 Text("أدخل رقمك الوظيفي المسجّل لدى القسم.").font(.footnote).foregroundStyle(.secondary)
                 TextField("الرقم الوظيفي", text: $number)
-                    .keyboardType(.numberPad)
+                    .keyboardType(.asciiCapableNumberPad)
+                    .digitsOnly($number)
+                    .multilineTextAlignment(.center)
                     .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
                 Button {
-                    if let i = store.data.employees.firstIndex(where: { $0.employeeNumber == number.trimmingCharacters(in: .whitespaces) }) {
+                    if let i = store.data.employees.firstIndex(where: { $0.employeeNumber.asciiDigits == number.asciiDigits }) {
                         store.data.employees[i].linked = true
                         store.data.settings.loggedInEmployeeNumber = store.data.employees[i].employeeNumber
                         error = nil
@@ -272,7 +275,7 @@ struct SettingsView: View {
                     TextField("قسم جديد", text: $newDept)
                     Button("إضافة") {
                         let n = newDept.trimmingCharacters(in: .whitespaces)
-                        if !n.isEmpty && !store.data.settings.departments.contains(n) { store.data.settings.departments.append(n) }
+                        if !n.isEmpty && !store.data.settings.departments.contains(n) { store.data.settings.departments.append(n); Task { try? await Session.shared.addDepartment(n) } }
                         newDept = ""
                     }
                 }
@@ -284,13 +287,17 @@ struct SettingsView: View {
                 Stepper("بداية الليلي: \(store.data.settings.nightStartHour):00", value: $store.data.settings.nightStartHour, in: 0...23)
                 Stepper("طول الشفت: \(store.data.settings.shiftLength) ساعة", value: $store.data.settings.shiftLength, in: 4...24)
                 Stepper("التذكير قبل: \(store.data.settings.reminderMinutesBefore) دقيقة", value: $store.data.settings.reminderMinutesBefore, in: 0...240, step: 15)
-                Button("تطبيق على التنبيهات") { Task { await store.rescheduleNotifications() } }.buttonStyle(.bordered)
+                Button("تطبيق على التنبيهات") { Task { await store.rescheduleNotifications(); try? await Session.shared.updateProfile(name: nil, phone: nil, photo: nil, reminder: store.data.settings.reminderMinutesBefore) } }.buttonStyle(.bordered)
             }.card()
             Button("إعادة البيانات التجريبية", role: .destructive) { confirmReset = true }
                 .confirmationDialog("سيتم حذف كل البيانات", isPresented: $confirmReset, titleVisibility: .visible) {
                     Button("إعادة تعيين", role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
                 }
-            Text("مِناوب 1.0 — البيانات محفوظة على الجهاز فقط.").font(.caption).foregroundStyle(.secondary)
+            ProfileCard()
+            NotificationTestPanel()
+            Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
+                .buttonStyle(OutlineButtonStyle())
+            Text("مِناوب 2.0 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

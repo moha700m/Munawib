@@ -20,6 +20,13 @@ final class NotificationManager {
         try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: trig))
     }
 
+    func notify(after seconds: TimeInterval, title: String, body: String) async {
+        let c = UNMutableNotificationContent()
+        c.title = title; c.body = body; c.sound = .default
+        let trig = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: trig))
+    }
+
     /// iOS keeps max 64 pending local notifications; schedule the nearest ones.
     @MainActor
     func reschedule(store: AppStore) async {

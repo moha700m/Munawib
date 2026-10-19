@@ -20,7 +20,9 @@ struct RootView: View {
                         }
                         .padding()
                     }
-                    .background(Theme.background)
+                    .refreshable { try? await Session.shared.refresh() }
+                    .keyboardDone()
+                    .background(Theme.background.onTapGesture { KeyboardHelper.dismiss() })
                 }
                 .toolbar(.hidden, for: .navigationBar)
             }
@@ -38,6 +40,7 @@ struct RootView: View {
             case .importRoster: ImportRosterSheet()
             case .addHours: HoursForm()
             case .addEvent: EventForm()
+            case .autoFill: AutoFillSheet()
             }
         }
         .task { await store.rescheduleNotifications() }
@@ -50,7 +53,11 @@ struct RootView: View {
     @ViewBuilder private var content: some View {
         switch screen {
         case .home: HomeView(screen: $screen, sheet: $sheet)
-        case .roster: RosterView()
+        case .roster: RosterView(); CoverageWarnings()
+        case .myShifts: MyShiftsView()
+        case .requests: RequestsView()
+        case .announcements: AnnouncementsView()
+        case .reports: ReportsView()
         case .hours: HoursView(sheet: $sheet)
         case .employees: EmployeesView(sheet: $sheet)
         case .events: EventsView(sheet: $sheet)
@@ -126,15 +133,19 @@ struct PageHeader: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Fmt.date(Date(), "EEEE، d MMMM yyyy")).font(.subheadline).foregroundStyle(.secondary)
             Text(screen.title).font(.largeTitle.bold())
-            Text(screen == .home ? "كل ما يخص مناوبات المستشفى في مكان واحد." : "عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد.")
+            if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(.orange) }
+            Text(screen == .home ? "كل ما يخص مناوبات المستشفى في مكان واحد." : screen == .roster ? "عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد." : "اسحب للأسفل للتحديث.")
                 .font(.footnote).foregroundStyle(.secondary)
-            HStack(spacing: 12) {
+            if Session.shared.isManager && [Screen.home, .roster, .employees].contains(screen) { HStack(spacing: 12) {
                 Button { sheet = .addEmployee } label: { Label("إضافة موظف", systemImage: "person.badge.plus") }
                     .buttonStyle(OutlineButtonStyle())
                 Button { sheet = .importRoster } label: { Label("رفع جدول", systemImage: "square.and.arrow.up") }
                     .buttonStyle(PrimaryButtonStyle())
+                if screen == .roster {
+                    Button { sheet = .autoFill } label: { Label("تعبئة", systemImage: "wand.and.stars") }.buttonStyle(OutlineButtonStyle())
+                }
             }
-            .padding(.top, 4)
+            .padding(.top, 4) }
         }
     }
 }
@@ -168,8 +179,11 @@ struct SideDrawer: View {
             .padding(12)
             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
             .padding(.vertical, 8)
-            ForEach([Screen.home, .roster, .hours, .employees, .events, .alerts]) { item(for: $0) }
-            Spacer()
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(Session.shared.isManager ? [Screen.home, .roster, .myShifts, .requests, .announcements, .reports, .hours, .employees, .events, .alerts] : [Screen.myShifts, .roster, .requests, .announcements, .events, .alerts]) { item(for: $0) }
+                }
+            }
             item(for: .portal)
             item(for: .settings)
         }
@@ -181,7 +195,7 @@ struct SideDrawer: View {
     }
 
     private func item(for s: Screen) -> some View {
-        Button { screen = s; close() } label: {
+        Button { UISelectionFeedbackGenerator().selectionChanged(); screen = s; close() } label: {
             Label(s.title, systemImage: s.symbol)
                 .font(.body.weight(screen == s ? .bold : .regular))
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)

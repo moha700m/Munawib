@@ -9,14 +9,29 @@ struct EmployeeForm: View {
     @State private var number = ""
     @State private var dept = ""
     @State private var phone = ""
+    @State private var role = "employee"
+    @State private var invite: NewEmployeeResponse?
+    @State private var error: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 TextField("الاسم", text: $name)
                 TextField("المسمى الوظيفي", text: $title)
-                TextField("الرقم الوظيفي", text: $number).keyboardType(.numberPad)
+                TextField("الرقم الوظيفي", text: $number).keyboardType(.asciiCapableNumberPad).digitsOnly($number)
                 TextField("الجوال", text: $phone).keyboardType(.phonePad)
+                if employee == nil && Session.shared.online && Session.shared.me?.role == "admin" {
+                    Picker("الصلاحية", selection: $role) {
+                        Text("موظف").tag("employee"); Text("مشرف").tag("supervisor"); Text("مدير").tag("admin")
+                    }
+                }
+                if let invite {
+                    Section("رمز الدعوة") {
+                        Text(invite.invite_code).font(.title.monospaced().bold()).textSelection(.enabled)
+                        ShareLink(item: "انضم إلى مِناوب: افتح التطبيق ← انضمام بدعوة ← الرمز \(invite.invite_code)\n\(invite.invite_link)") { Label("مشاركة الدعوة", systemImage: "square.and.arrow.up") }
+                    }
+                }
+                if let error { Text(error).foregroundStyle(.red) }
                 Picker("القسم", selection: $dept) {
                     ForEach(store.data.settings.departments, id: \.self) { Text($0).tag($0) }
                 }
@@ -24,6 +39,7 @@ struct EmployeeForm: View {
                     Section {
                         Button("حذف الموظف", role: .destructive) {
                             store.data.employees.removeAll { $0.id == employee.id }
+                            Task { try? await Session.shared.deleteEmployee(employee.id) }
                             dismiss()
                         }
                     }
@@ -34,7 +50,7 @@ struct EmployeeForm: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("حفظ") { save() }.disabled(name.isEmpty || number.isEmpty)
+                    Button(invite == nil ? "حفظ" : "تم") { save() }.disabled(name.isEmpty || number.isEmpty)
                 }
             }
             .onAppear {
@@ -42,6 +58,7 @@ struct EmployeeForm: View {
                 if let e = employee { name = e.name; title = e.title; number = e.employeeNumber; phone = e.phone }
             }
         }
+        .keyboardDone()
         .environment(\.layoutDirection, .rightToLeft)
     }
 
@@ -50,11 +67,21 @@ struct EmployeeForm: View {
             store.data.employees[i].name = name; store.data.employees[i].title = title
             store.data.employees[i].employeeNumber = number; store.data.employees[i].department = dept
             store.data.employees[i].phone = phone
+            Task { try? await Session.shared.updateEmployee(employee.id, name: name, title: title, number: number, dept: dept, phone: phone) }
+            dismiss()
+        } else if Session.shared.online {
+            if invite != nil { dismiss(); return }
+            Task {
+                do {
+                    invite = try await Session.shared.createEmployee(name: name, title: title, number: number, dept: dept, phone: phone, role: role)
+                    store.log("دعوة موظف", "\(name) — رمز \(invite?.invite_code ?? "")")
+                } catch { self.error = (error as? LocalizedError)?.errorDescription }
+            }
         } else {
             store.data.employees.append(Employee(name: name, title: title, employeeNumber: number, department: dept, phone: phone))
             store.log("دعوة موظف", "\(name) — \(number)")
+            dismiss()
         }
-        dismiss()
     }
 }
 
@@ -86,7 +113,7 @@ struct HoursForm: View {
                 ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("حفظ") {
-                        if let empID { store.data.hours.append(HourLog(employeeID: empID, date: date, kind: kind, hours: hours, note: note)) }
+                        if let empID { let h = HourLog(employeeID: empID, date: date, kind: kind, hours: hours, note: note); store.data.hours.append(h); Task { try? await Session.shared.addHours(h) } }
                         dismiss()
                     }.disabled(empID == nil)
                 }
@@ -96,6 +123,7 @@ struct HoursForm: View {
                 date = store.currentMonth
             }
         }
+        .keyboardDone()
         .environment(\.layoutDirection, .rightToLeft)
     }
 }
@@ -122,7 +150,7 @@ struct EventForm: View {
                 ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("حفظ") {
-                        store.data.events.append(HospitalEvent(title: title, date: date, location: location, audience: allHospital ? "كل المستشفى" : store.data.selectedDepartment))
+                        let ev = HospitalEvent(title: title, date: date, location: location, audience: allHospital ? "كل المستشفى" : store.data.selectedDepartment); store.data.events.append(ev); Task { try? await Session.shared.addEvent(ev) }
                         store.log("إضافة فعالية", title)
                         Task { await store.rescheduleNotifications() }
                         dismiss()
@@ -130,6 +158,7 @@ struct EventForm: View {
                 }
             }
         }
+        .keyboardDone()
         .environment(\.layoutDirection, .rightToLeft)
     }
 }
