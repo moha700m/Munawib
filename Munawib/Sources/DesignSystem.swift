@@ -32,11 +32,17 @@ struct DSField: View {
     var ltr: Bool = false
     var numeric: Bool = false
     var autofocus: Bool = false
+    var keyboard: UIKeyboardType = .default
+    var uppercase: Bool = false
+    var contentType: UITextContentType? = nil
+    var id: String? = nil
+    var returnKey: UIReturnKeyType = .next
+    var onReturn: (() -> Void)? = nil
     var body: some View {
         HStack(spacing: DS.s) {
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 22).accessibilityHidden(true)
-            if numeric { NumericField(placeholder: placeholder, text: $text, focusOnAppear: autofocus).frame(minHeight: 44) }
-            else { TextField(placeholder, text: $text) }
+            AppTextField(placeholder: placeholder, text: $text, keyboard: keyboard, digitsOnly: numeric, uppercase: uppercase, ltr: ltr, contentType: contentType, returnKey: returnKey, identifier: id, focusOnAppear: autofocus, onReturn: onReturn)
+                .frame(minHeight: 44)
             if !text.isEmpty {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
                     .accessibilityLabel("مسح")
@@ -49,12 +55,15 @@ struct DSField: View {
 struct DSSecureField: View {
     let placeholder: String
     @Binding var text: String
+    var id: String? = nil
+    var contentType: UITextContentType = .newPassword
+    var onReturn: (() -> Void)? = nil
     @State private var show = false
     var body: some View {
         HStack(spacing: DS.s) {
             Image(systemName: "lock").foregroundStyle(.secondary).frame(width: 22).accessibilityHidden(true)
-            Group { if show { TextField(placeholder, text: $text) } else { SecureField(placeholder, text: $text) } }
-                .textContentType(.newPassword).textInputAutocapitalization(.never).autocorrectionDisabled()
+            AppTextField(placeholder: placeholder, text: $text, secure: !show, contentType: contentType, returnKey: .go, identifier: id, onReturn: onReturn)
+                .frame(minHeight: 44)
             Button { show.toggle() } label: { Image(systemName: show ? "eye.slash" : "eye").foregroundStyle(.secondary).frame(width: 44, height: 44) }
                 .accessibilityLabel(show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور")
         }

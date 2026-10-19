@@ -96,7 +96,7 @@ struct CustomPushSheet: View {
         let staff = (Session.shared.remote?.users ?? []).filter { me?.role == "admin" || $0.department_id == me?.department_id }
         NavigationStack {
             Form {
-                TextField("العنوان", text: $title)
+                AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32)
                 TextField("النص", text: $text, axis: .vertical)
                 Toggle("كل القسم", isOn: $everyone)
                 if !everyone {

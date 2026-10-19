@@ -1,0 +1,48 @@
+name: UI Tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  uitests:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: brew install xcodegen && xcodegen generate
+      - name: Pick simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          for pref in ['iPhone 17 Pro','iPhone 16 Pro','iPhone 17','iPhone 16']:
+              for rt,devs in sorted(d.items(), reverse=True):
+                  for x in devs:
+                      if x['name']==pref and 'iOS' in rt: print(x['udid']); sys.exit()
+          ")
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Arabic locale + Arabic keyboard, hardware keyboard disconnected so the software keyboard is used
+          xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array ar en
+          xcrun simctl spawn "$UDID" defaults write -g AppleLocale ar_SA
+          xcrun simctl spawn "$UDID" defaults write -g AppleKeyboards -array "ar@sw=Arabic" "en_US@sw=QWERTY"
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false || true
+      - name: Run UI tests
+        run: |
+          mkdir -p $PWD/uishots
+          set -o pipefail
+          TEST_RUNNER_SHOTS_DIR=$PWD/uishots xcodebuild test -project Munawib.xcodeproj -scheme Munawib \
+            -destination "id=$UDID" -derivedDataPath build -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee test.log | grep -E "Test Case|error:|failed|passed|XCTAssert" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" test.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uitest-results
+          path: |
+            uishots/
+            test.log

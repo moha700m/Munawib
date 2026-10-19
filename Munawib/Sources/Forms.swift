@@ -18,10 +18,10 @@ struct EmployeeForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("الاسم", text: $name)
-                TextField("المسمى الوظيفي", text: $title)
-                NumericField(placeholder: "الرقم الوظيفي", text: $number)
-                TextField("الجوال", text: $phone).keyboardType(.phonePad)
+                AppTextField(placeholder: "الاسم", text: $name).frame(minHeight: 32)
+                AppTextField(placeholder: "المسمى الوظيفي", text: $title).frame(minHeight: 32)
+                NumericField(placeholder: "الرقم الوظيفي", text: $number, identifier: "employee.number")
+                AppTextField(placeholder: "الجوال", text: $phone, keyboard: .phonePad, ltr: true).frame(minHeight: 32)
                 if Session.shared.online && Session.shared.me?.isHead == true {
                     Picker("الصلاحية", selection: $role) {
                         Text("موظف").tag("employee"); Text("مشرف").tag("supervisor")
@@ -120,7 +120,7 @@ struct HoursForm: View {
                 }
                 DatePicker("التاريخ", selection: $date, displayedComponents: .date)
                 Stepper("الساعات: \(Fmt.hours(hours))", value: $hours, in: 0.5...24, step: 0.5)
-                TextField("ملاحظة", text: $note)
+                AppTextField(placeholder: "ملاحظة", text: $note).frame(minHeight: 32)
             }
             .navigationTitle("إضافة سجل ساعات")
             .navigationBarTitleDisplayMode(.inline)
@@ -154,9 +154,9 @@ struct EventForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("العنوان", text: $title)
+                AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32)
                 DatePicker("الموعد", selection: $date)
-                TextField("المكان", text: $location)
+                AppTextField(placeholder: "المكان", text: $location).frame(minHeight: 32)
                 Toggle("لكل المستشفى", isOn: $allHospital)
             }
             .navigationTitle("دورة أو فعالية")

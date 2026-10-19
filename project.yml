@@ -24,3 +24,23 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_ENTITLEMENTS: Munawib/Munawib.entitlements
+  MunawibUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [MunawibUITests]
+    dependencies:
+      - target: Munawib
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohlab.munawib.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_TARGET_NAME: Munawib
+schemes:
+  Munawib:
+    build:
+      targets:
+        Munawib: all
+    test:
+      targets:
+        - MunawibUITests

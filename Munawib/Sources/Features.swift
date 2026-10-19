@@ -368,7 +368,7 @@ struct SwapForm: View {
                     ForEach(others) { Text($0.name).tag($0.id) }
                 }
                 DatePicker("يوم المناوبة", selection: $date, displayedComponents: .date)
-                TextField("ملاحظة", text: $note)
+                AppTextField(placeholder: "ملاحظة", text: $note).frame(minHeight: 32)
                 if let error { Text(error).foregroundStyle(.red) }
             }
             .navigationTitle("طلب تبديل").navigationBarTitleDisplayMode(.inline)
@@ -399,7 +399,7 @@ struct AnnouncementsView: View {
             if session.online && session.isManager {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("إعلان جديد").font(.title3.bold())
-                    TextField("العنوان", text: $title).fieldBox()
+                    AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32).fieldBox()
                     TextField("النص", text: $text, axis: .vertical).lineLimit(3...6).fieldBox()
                     Toggle("لكل المستشفى", isOn: $allHospital)
                     if let error { Text(error).foregroundStyle(.red).font(.footnote) }

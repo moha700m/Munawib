@@ -70,7 +70,7 @@ struct EmployeesView: View {
             }
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("بحث بالاسم أو الرقم", text: $query)
+                AppTextField(placeholder: "بحث بالاسم أو الرقم", text: $query).frame(minHeight: 32)
             }
             .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
             if list.isEmpty { ContentUnavailableView.search(text: query) }
@@ -188,7 +188,7 @@ struct SettingsView: View {
             if Session.shared.online || Session.shared.demoInfo { HospitalInfoCard() }
             VStack(alignment: .leading, spacing: 12) {
                 Text("المستشفى").font(.title3.bold())
-                TextField("اسم المستشفى", text: $store.data.settings.hospital)
+                AppTextField(placeholder: "اسم المستشفى", text: $store.data.settings.hospital).frame(minHeight: 32)
                     .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
             }.card()
             VStack(alignment: .leading, spacing: 10) {
@@ -207,7 +207,7 @@ struct SettingsView: View {
                     }
                 }
                 HStack {
-                    TextField("قسم جديد", text: $newDept)
+                    AppTextField(placeholder: "قسم جديد", text: $newDept).frame(minHeight: 32)
                     Button("إضافة") {
                         let n = newDept.trimmingCharacters(in: .whitespaces)
                         if !n.isEmpty && !store.data.settings.departments.contains(n) { store.data.settings.departments.append(n); Task { try? await Session.shared.addDepartment(n) } }

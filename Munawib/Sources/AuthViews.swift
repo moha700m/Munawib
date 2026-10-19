@@ -33,7 +33,7 @@ struct AuthView: View {
     @State private var showServer = false
     @State private var showForgot = false
     @State private var faceID = QuickLogin.enabled
-    @FocusState private var focus: Field?
+    @State private var focus: Field?
     enum Field { case id, code, pw }
     private let session = Session.shared
 
@@ -46,27 +46,12 @@ struct AuthView: View {
                 VStack(spacing: DS.l) {
                     header
                     VStack(spacing: DS.m) {
-                        DSField(icon: "person", placeholder: "البريد الإلكتروني أو الرقم الوظيفي", text: $identifier, ltr: true)
-                            .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .focused($focus, equals: .id).submitLabel(.next)
-                            .onSubmit { focus = isEmployeeNumber ? .code : .pw }
+                        DSField(icon: "person", placeholder: "البريد الإلكتروني أو الرقم الوظيفي", text: $identifier, ltr: true, keyboard: .emailAddress, contentType: .username, id: "login.identifier")
                         if isEmployeeNumber {
-                            DSField(icon: "building.2", placeholder: "رمز المستشفى", text: $hospitalCode, ltr: true)
-                                .textInputAutocapitalization(.characters).autocorrectionDisabled()
-                                .focused($focus, equals: .code).submitLabel(.next).onSubmit { focus = .pw }
+                            DSField(icon: "building.2", placeholder: "رمز المستشفى", text: $hospitalCode, ltr: true, uppercase: true, id: "login.hospitalCode")
                                 .transition(.move(edge: .top).combined(with: .opacity))
                         }
-                        HStack(spacing: DS.s) {
-                            Image(systemName: "lock").foregroundStyle(.secondary).frame(width: 22).accessibilityHidden(true)
-                            Group {
-                                if showPassword { TextField("كلمة المرور", text: $password) } else { SecureField("كلمة المرور", text: $password) }
-                            }
-                            .textContentType(.password).autocorrectionDisabled().textInputAutocapitalization(.never)
-                            .focused($focus, equals: .pw).submitLabel(.go).onSubmit { Task { await submit() } }
-                            Button { showPassword.toggle() } label: { Image(systemName: showPassword ? "eye.slash" : "eye").foregroundStyle(.secondary).frame(width: 44, height: 44) }
-                                .accessibilityLabel(showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور")
-                        }
-                        .dsFieldChrome()
+                        DSSecureField(placeholder: "كلمة المرور", text: $password, id: "login.password", contentType: .password, onReturn: { Task { await submit() } })
                         HStack {
                             if QuickLogin.available {
                                 Toggle(isOn: $faceID) { Label(QuickLogin.biometryName, systemImage: "faceid").font(.footnote) }
@@ -111,7 +96,7 @@ struct AuthView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Theme.background.ignoresSafeArea().onTapGesture { focus = nil })
+            .background(Theme.background.ignoresSafeArea().onTapGesture { KeyboardHelper.dismiss() })
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showServer = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("خادم المستشفى")
@@ -158,7 +143,7 @@ struct AuthView: View {
 
     private func submit() async {
         guard valid else { return }
-        focus = nil; busy = true; withAnimation { error = nil }
+        KeyboardHelper.dismiss(); busy = true; withAnimation { error = nil }
         defer { busy = false }
         do {
             try await session.login(identifier: identifier, hospitalCode: hospitalCode, password: password)
@@ -203,19 +188,18 @@ struct SignupWizard: View {
                 StepHeader(step: step, total: 2, title: step == 1 ? "بيانات المستشفى" : "حساب المدير", subtitle: step == 1 ? "اسم المستشفى والقسم الأول، ورئيسة التمريض إن وُجدت." : "ستدخل بهذا البريد أو برقمك الوظيفي.")
                 if step == 1 {
                     VStack(spacing: DS.m) {
-                        DSField(icon: "building.2", placeholder: "اسم المستشفى", text: $hospital)
+                        DSField(icon: "building.2", placeholder: "اسم المستشفى", text: $hospital, id: "signup.hospital")
                         DSField(icon: "square.grid.2x2", placeholder: "القسم الأول (مثال: الطوارئ)", text: $department)
                         Text("رئيسة التمريض (اختياري)").font(.footnote.weight(.semibold)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                         DSField(icon: "person.badge.shield.checkmark", placeholder: "اسم رئيسة التمريض", text: $hnName)
-                        DSField(icon: "number", placeholder: "رقمها الوظيفي", text: $hnNumber, ltr: true, numeric: true)
+                        DSField(icon: "number", placeholder: "رقمها الوظيفي", text: $hnNumber, ltr: true, numeric: true, id: "signup.hnNumber")
                     }
                     Button("التالي") { withAnimation(.snappy) { step = 2 } }.buttonStyle(PrimaryButtonStyle()).disabled(hospital.trimmingCharacters(in: .whitespaces).isEmpty)
                 } else {
                     VStack(spacing: DS.m) {
-                        DSField(icon: "person", placeholder: "اسمك", text: $name).textContentType(.name)
-                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true, numeric: true, autofocus: Demo.auth == "keyboard")
-                        DSField(icon: "envelope", placeholder: "البريد الإلكتروني", text: $email, ltr: true)
-                            .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        DSField(icon: "person", placeholder: "اسمك", text: $name, contentType: .name, id: "signup.name")
+                        DSField(icon: "number", placeholder: "رقمك الوظيفي (اختياري)", text: $number, ltr: true, numeric: true, autofocus: Demo.auth == "keyboard", id: "signup.number")
+                        DSField(icon: "envelope", placeholder: "البريد الإلكتروني", text: $email, ltr: true, keyboard: .emailAddress, contentType: .username, id: "signup.email")
                         DSSecureField(placeholder: "كلمة المرور (8 أحرف على الأقل)", text: $password)
                     }
                     if let error { Label(error, systemImage: "exclamationmark.circle.fill").font(.subheadline).foregroundStyle(.red) }
@@ -261,10 +245,9 @@ struct ActivateView: View {
             VStack(alignment: .leading, spacing: DS.l) {
                 StepHeader(step: nil, total: 0, title: "تفعيل حساب بدعوة", subtitle: "أدخل كود الدعوة الذي أعطاك إياه المشرف أو رئيسة التمريض، ثم اختر كلمة مرور.")
                 VStack(spacing: DS.m) {
-                    DSField(icon: "ticket", placeholder: "كود الدعوة (6 أحرف)", text: $code, ltr: true).textInputAutocapitalization(.characters).autocorrectionDisabled()
+                    DSField(icon: "ticket", placeholder: "كود الدعوة (6 أحرف)", text: $code, ltr: true, uppercase: true, id: "activate.code")
                     DSSecureField(placeholder: "كلمة مرور جديدة (8 أحرف على الأقل)", text: $password)
-                    DSField(icon: "envelope", placeholder: "البريد الإلكتروني (اختياري)", text: $email, ltr: true)
-                        .keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    DSField(icon: "envelope", placeholder: "البريد الإلكتروني (اختياري)", text: $email, ltr: true, keyboard: .emailAddress, id: "activate.email")
                 }
                 if let error { Label(error, systemImage: "exclamationmark.circle.fill").font(.subheadline).foregroundStyle(.red) }
                 Button { Task { await submit() } } label: { HStack { if busy { ProgressView().tint(.white) }; Text("تفعيل والدخول") } }
