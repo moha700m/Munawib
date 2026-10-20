@@ -118,7 +118,7 @@ struct HeaderBar: View {
             }
             .accessibilityLabel(L("التنبيهات"))
             Button { screen = .settings } label: {
-                Text(L("حسابي"))
+                Text(L("حسابي")).lineLimit(1).fixedSize()
                     .font(.subheadline.bold())
                     .padding(.horizontal, 14).frame(minHeight: 44)
                     .foregroundStyle(.white)
