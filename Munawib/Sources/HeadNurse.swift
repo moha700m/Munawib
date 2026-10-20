@@ -4,7 +4,7 @@ struct RoleBadge: View {
     let title: String
     var body: some View {
         if !title.isEmpty {
-            Text(title).font(.caption2.bold()).padding(.horizontal, 8).padding(.vertical, 4)
+            Text(title).font(.caption2.bold()).lineLimit(1).minimumScaleFactor(0.7).fixedSize(horizontal: true, vertical: false).padding(.horizontal, 8).padding(.vertical, 4)
                 .foregroundStyle(.white).background(Theme.primary, in: Capsule())
                 .accessibilityLabel(L("الدور: %@", "\(title)"))
         }

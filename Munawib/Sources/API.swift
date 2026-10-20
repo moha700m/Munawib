@@ -58,6 +58,7 @@ struct RUser: Codable, Identifiable, Hashable {
     var title: String?; var employee_number: String?; var role: String; var phone: String?; var photo: String?
     var reminder_minutes: Int?; var invite_code: String?; var joined: Bool?
     var roleTitle: String { role == "admin" ? L("مدير") : role == "head_nurse" ? L("رئيسة تمريض") : role == "supervisor" ? L("مشرف") : L("موظف") }
+    var roleShortTitle: String { role == "admin" ? L("role.short.admin") : role == "head_nurse" ? L("role.short.head") : role == "supervisor" ? L("role.short.supervisor") : L("role.short.staff") }
     var isManager: Bool { role == "admin" || role == "head_nurse" || role == "supervisor" }
     var isHead: Bool { role == "admin" || role == "head_nurse" }
 }

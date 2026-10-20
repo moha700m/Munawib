@@ -2,9 +2,13 @@ name: UI Tests
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, l10n2]
 jobs:
   uitests:
+    strategy:
+      fail-fast: false
+      matrix:
+        size: [regular, small]
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -18,7 +22,8 @@ jobs:
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json,sys
           d=json.load(sys.stdin)['devices']
-          for pref in ['iPhone 17 Pro','iPhone 16 Pro','iPhone 17','iPhone 16']:
+          prefs={'regular':['iPhone 17 Pro','iPhone 16 Pro','iPhone 17','iPhone 16'],'small':['iPhone SE (3rd generation)','iPhone 16e','iPhone 13 mini','iPhone 17e']}['${{ matrix.size }}']
+          for pref in prefs:
               for rt,devs in sorted(d.items(), reverse=True):
                   for x in devs:
                       if x['name']==pref and 'iOS' in rt: print(x['udid']); sys.exit()
@@ -42,7 +47,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: uitest-results
+          name: uitest-results-${{ matrix.size }}
           path: |
             uishots/
             test.log

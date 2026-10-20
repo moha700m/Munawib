@@ -147,7 +147,7 @@ final class LocalizationTests: XCTestCase {
     func testEnglishScreens() {
         for (lang, screens) in [("en", ["home", "roster", "settings"]), ("ar", ["home", "roster", "settings"])] {
             for sc in screens {
-                let app = launch(lang, ["-demo", "-screen", sc])
+                let app = launch(lang, ["-demo", "-hospitalInfo", "-screen", sc])
                 sleep(3)
                 if lang == "en" && sc == "settings" { XCTAssertTrue(app.staticTexts["Shift times"].waitForExistence(timeout: 5) || app.staticTexts["اللغة / Language"].exists) }
                 shot("\(lang)_\(sc)")

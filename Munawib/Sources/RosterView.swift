@@ -16,7 +16,7 @@ struct RosterView: View {
                 Spacer()
                 VStack {
                     Text(L("المصدر: %@", "\(store.roster.source ?? L("لم يُرفع جدول بعد"))")).font(.caption).foregroundStyle(.secondary)
-                    Text(L("جدول %1$@ — %2$@", "\(store.monthTitle)", "\(store.data.selectedDepartment)")).font(.headline).multilineTextAlignment(.center)
+                    Text(L("جدول %1$@ — %2$@", "\(store.monthTitle)", "\(Dept.display(store.data.selectedDepartment))")).font(.headline).multilineTextAlignment(.center)
                 }
                 Spacer()
                 Button { store.shiftMonth(1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }

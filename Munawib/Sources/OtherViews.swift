@@ -84,7 +84,7 @@ struct EmployeesView: View {
                         Spacer()
                         VStack(alignment: .trailing) {
                             Text(e.employeeNumber).font(.subheadline).foregroundStyle(.primary)
-                            Text(e.department).font(.caption2).foregroundStyle(.secondary)
+                            Text(Dept.display(e.department)).font(.caption2).foregroundStyle(.secondary)
                         }
                         Image(systemName: e.linked ? "link.circle.fill" : "link.circle").foregroundStyle(e.linked ? Theme.primary : .secondary)
                             .accessibilityLabel(e.linked ? L("حساب مربوط") : L("غير مربوط"))
@@ -199,7 +199,7 @@ struct SettingsView: View {
                 Text(L("الأقسام")).font(.title3.bold())
                 ForEach(store.data.settings.departments, id: \.self) { d in
                     HStack {
-                        Text(d)
+                        Text(Dept.display(d))
                         Spacer()
                         if store.data.settings.departments.count > 1 {
                             Button(role: .destructive) {

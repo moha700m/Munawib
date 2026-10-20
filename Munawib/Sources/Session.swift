@@ -25,6 +25,7 @@ final class Session {
     var isLoggedIn: Bool { offlineMode || (authToken != nil && me != nil) }
     var isManager: Bool { offlineMode || (me?.isManager ?? false) }
     var isHead: Bool { offlineMode || (me?.isHead ?? false) }
+    var roleShortTitle: String { offlineMode ? L("محلي") : (me?.roleShortTitle ?? "") }
     var roleTitle: String { offlineMode ? L("وضع محلي") : (me?.roleTitle ?? "") }
     var savedHospitalCode: String { get { UserDefaults.standard.string(forKey: "hospitalCode") ?? "" } set { UserDefaults.standard.set(newValue, forKey: "hospitalCode") } }
     var signupInfo: String?

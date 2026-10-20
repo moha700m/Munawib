@@ -92,19 +92,21 @@ struct HeaderBar: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
             }
             .accessibilityLabel(L("القائمة"))
-            RoleBadge(title: Session.shared.roleTitle)
-            Spacer()
+            RoleBadge(title: Session.shared.roleShortTitle).layoutPriority(1)
+            Spacer(minLength: 4)
             Menu {
                 ForEach(Session.shared.me?.role == "admin" || Session.shared.offlineMode ? store.data.settings.departments : [store.data.selectedDepartment], id: \.self) { d in
-                    Button(d) { store.selectDepartment(d) }
+                    Button(Dept.display(d)) { store.selectDepartment(d) }
                 }
             } label: {
-                Label(store.data.selectedDepartment, systemImage: "chevron.down")
+                Label(Dept.display(store.data.selectedDepartment), systemImage: "chevron.down")
                     .labelStyle(TrailingIconLabel())
                     .font(.subheadline.bold())
+                    .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.8)
                     .foregroundStyle(.primary)
             }
-            Spacer()
+            .layoutPriority(-1)
+            Spacer(minLength: 4)
             Button { screen = .alerts } label: {
                 Image(systemName: "bell").font(.title3)
                     .frame(width: 44, height: 44)
@@ -118,7 +120,7 @@ struct HeaderBar: View {
             }
             .accessibilityLabel(L("التنبيهات"))
             Button { screen = .settings } label: {
-                Text(L("حسابي")).lineLimit(1).fixedSize()
+                Text(L("حسابي")).lineLimit(1).minimumScaleFactor(0.75)
                     .font(.subheadline.bold())
                     .padding(.horizontal, 14).frame(minHeight: 44)
                     .foregroundStyle(.white)

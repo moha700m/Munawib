@@ -68,3 +68,34 @@ struct LanguagePicker: View {
         }
     }
 }
+
+/// Localizes well-known department names (user data otherwise shown as entered).
+enum Dept {
+    private static let map: [String: String] = [
+        "اطفال": "Pediatrics", "الاطفال": "Pediatrics", "تمريض الاطفال": "Pediatric Nursing",
+        "طوارئ": "Emergency", "الطوارئ": "Emergency",
+        "العناية المركزة": "Intensive Care (ICU)", "عناية مركزة": "Intensive Care (ICU)", "العنايه المركزه": "Intensive Care (ICU)",
+        "عناية مركزة اطفال": "Pediatric ICU", "العناية المركزة للاطفال": "Pediatric ICU", "حديثي الولادة": "Neonatal ICU (NICU)", "العناية المركزة لحديثي الولادة": "Neonatal ICU (NICU)",
+        "باطنية": "Internal Medicine", "الباطنية": "Internal Medicine", "الباطنة": "Internal Medicine",
+        "جراحة": "Surgery", "الجراحة": "Surgery", "العمليات": "Operating Room", "غرفة العمليات": "Operating Room",
+        "نساء وولادة": "Obstetrics & Gynecology", "النساء والولادة": "Obstetrics & Gynecology", "الولادة": "Labor & Delivery",
+        "قلب": "Cardiology", "القلب": "Cardiology", "عناية القلب": "Cardiac Care (CCU)",
+        "عظام": "Orthopedics", "العظام": "Orthopedics", "الكلى": "Nephrology", "غسيل الكلى": "Dialysis",
+        "الأورام": "Oncology", "اورام": "Oncology", "الأشعة": "Radiology", "اشعة": "Radiology",
+        "المختبر": "Laboratory", "مختبر": "Laboratory", "الصيدلية": "Pharmacy", "العيادات": "Outpatient Clinics", "العيادات الخارجية": "Outpatient Clinics",
+        "التنويم": "Inpatient Ward", "الاعصاب": "Neurology", "النفسية": "Psychiatry", "التخدير": "Anesthesia", "التمريض": "Nursing",
+    ]
+    private static func norm(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: .whitespaces)
+        for (a, b) in [("أ", "ا"), ("إ", "ا"), ("آ", "ا"), ("ة", "ة")] { t = t.replacingOccurrences(of: a, with: b) }
+        if t.hasPrefix("قسم ") { t.removeFirst(4) }
+        return t
+    }
+    static func display(_ name: String) -> String {
+        guard LanguageManager.current == .en else { return name }
+        let n = norm(name)
+        if let v = map[n] { return v }
+        let noAl = n.hasPrefix("ال") ? String(n.dropFirst(2)) : n
+        return map[noAl] ?? map["ال" + n] ?? name
+    }
+}
