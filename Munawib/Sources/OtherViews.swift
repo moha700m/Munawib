@@ -11,22 +11,22 @@ struct HoursView: View {
         VStack(spacing: 16) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
                 ForEach(HourKind.allCases) { k in
-                    StatCard(symbol: "clock", tint: tints[k] ?? Theme.primary, caption: k.title, value: "\(Fmt.hours(store.total(k))) ساعة", footnote: "هذا الشهر")
+                    StatCard(symbol: "clock", tint: tints[k] ?? Theme.primary, caption: k.title, value: L("%@ ساعة", "\(Fmt.hours(store.total(k)))"), footnote: L("هذا الشهر"))
                 }
             }
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     VStack(alignment: .leading) {
-                        Text("\(logs.count) سجل قابل للتدقيق").font(.caption).foregroundStyle(.secondary)
-                        Text("تفاصيل \(store.monthTitle)").font(.title2.bold())
+                        Text(L("%@ سجل قابل للتدقيق", "\(logs.count)")).font(.caption).foregroundStyle(.secondary)
+                        Text(L("تفاصيل %@", "\(store.monthTitle)")).font(.title2.bold())
                     }
                     Spacer()
-                    Button { sheet = .addHours } label: { Label("إضافة سجل", systemImage: "plus") }
+                    Button { sheet = .addHours } label: { Label(L("إضافة سجل"), systemImage: "plus") }
                         .buttonStyle(.borderedProminent)
                 }
-                Text("H حضور فعلي · SB الاستعداد · OT الإضافي · CT تعويضي").font(.caption).foregroundStyle(.secondary)
+                Text(L("H حضور فعلي · SB الاستعداد · OT الإضافي · CT تعويضي")).font(.caption).foregroundStyle(.secondary)
                 if logs.isEmpty {
-                    ContentUnavailableView("لم تُسجل ساعات بعد", systemImage: "clock", description: Text("ابدأ بإضافة الحضور أو الاستعداد أو الإضافي أو الإجازة أو الدورة."))
+                    ContentUnavailableView(L("لم تُسجل ساعات بعد"), systemImage: "clock", description: Text(L("ابدأ بإضافة الحضور أو الاستعداد أو الإضافي أو الإجازة أو الدورة.")))
                 }
                 ForEach(logs) { l in
                     HStack {
@@ -37,9 +37,9 @@ struct HoursView: View {
                             Text("\(Fmt.date(l.date, "d MMMM")) · \(l.kind.title)\(l.note.isEmpty ? "" : " · \(l.note)")").font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text("\(Fmt.hours(l.hours)) س").font(.headline)
+                        Text(L("%@ س", "\(Fmt.hours(l.hours))")).font(.headline)
                         Button(role: .destructive) { store.data.hours.removeAll { $0.id == l.id } } label: { Image(systemName: "trash") }
-                            .accessibilityLabel("حذف السجل")
+                            .accessibilityLabel(L("حذف السجل"))
                     }
                 }
             }
@@ -61,16 +61,16 @@ struct EmployeesView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("\(store.departmentEmployees.count) موظفًا").font(.caption).foregroundStyle(.secondary)
-                    Text("دليل الموظفين").font(.title2.bold())
+                    Text(L("%@ موظفًا", "\(store.departmentEmployees.count)")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("دليل الموظفين")).font(.title2.bold())
                 }
                 Spacer()
-                Button { sheet = .addEmployee } label: { Label("إضافة موظف", systemImage: "plus") }
+                Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "plus") }
                     .buttonStyle(.borderedProminent)
             }
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                AppTextField(placeholder: "بحث بالاسم أو الرقم", text: $query).frame(minHeight: 32)
+                AppTextField(placeholder: L("بحث بالاسم أو الرقم"), text: $query).frame(minHeight: 32)
             }
             .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
             if list.isEmpty { ContentUnavailableView.search(text: query) }
@@ -87,7 +87,7 @@ struct EmployeesView: View {
                             Text(e.department).font(.caption2).foregroundStyle(.secondary)
                         }
                         Image(systemName: e.linked ? "link.circle.fill" : "link.circle").foregroundStyle(e.linked ? Theme.primary : .secondary)
-                            .accessibilityLabel(e.linked ? "حساب مربوط" : "غير مربوط")
+                            .accessibilityLabel(e.linked ? L("حساب مربوط") : L("غير مربوط"))
                     }
                     .padding(.vertical, 6)
                 }
@@ -105,16 +105,16 @@ struct EventsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("الدورات والفعاليات").font(.title2.bold())
+                Text(L("الدورات والفعاليات")).font(.title2.bold())
                 Spacer()
-                Button { sheet = .addEvent } label: { Label("إضافة", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                Button { sheet = .addEvent } label: { Label(L("إضافة"), systemImage: "plus") }.buttonStyle(.borderedProminent)
             }
-            if store.data.events.isEmpty { ContentUnavailableView("لا توجد فعاليات", systemImage: "book.pages") }
+            if store.data.events.isEmpty { ContentUnavailableView(L("لا توجد فعاليات"), systemImage: "book.pages") }
             ForEach(store.data.events.sorted { $0.date < $1.date }) { ev in
                 HStack {
                     EventRow(event: ev)
                     Button(role: .destructive) { store.data.events.removeAll { $0.id == ev.id } } label: { Image(systemName: "trash") }
-                        .accessibilityLabel("حذف")
+                        .accessibilityLabel(L("حذف"))
                 }
                 Divider()
             }
@@ -131,38 +131,38 @@ struct AlertsView: View {
         VStack(spacing: 16) {
             VStack(spacing: 12) {
                 IconTile(symbol: store.data.settings.notificationsEnabled ? "bell.badge.fill" : "bell", size: 64)
-                Text(store.data.settings.notificationsEnabled ? "التنبيهات مفعّلة على جهازك" : "فعّل التنبيهات على جهازك").font(.title3.bold())
-                Text("ستصلك تنبيهات اعتماد الجدول وبداية الشفت والفعاليات.").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text(store.data.settings.notificationsEnabled ? L("التنبيهات مفعّلة على جهازك") : L("فعّل التنبيهات على جهازك")).font(.title3.bold())
+                Text(L("ستصلك تنبيهات اعتماد الجدول وبداية الشفت والفعاليات.")).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Button {
                     Task {
                         let ok = await NotificationManager.shared.requestPermission()
                         store.data.settings.notificationsEnabled = ok
                         status = await NotificationManager.shared.status()
                         if ok {
-                            await NotificationManager.shared.notifyNow(title: "مِناوب", body: "تم تفعيل التنبيهات بنجاح ✅")
+                            await NotificationManager.shared.notifyNow(title: L("مِناوب"), body: L("تم تفعيل التنبيهات بنجاح ✅"))
                             await store.rescheduleNotifications()
                         }
                     }
-                } label: { Label(store.data.settings.notificationsEnabled ? "إعادة الجدولة" : "تفعيل التنبيهات", systemImage: "bell") }
+                } label: { Label(store.data.settings.notificationsEnabled ? L("إعادة الجدولة") : L("تفعيل التنبيهات"), systemImage: "bell") }
                 .buttonStyle(PrimaryButtonStyle())
                 if status == .denied {
-                    Text("التنبيهات مرفوضة. فعّلها من الإعدادات ← مِناوب ← الإشعارات.").font(.caption).foregroundStyle(.orange)
+                    Text(L("التنبيهات مرفوضة. فعّلها من الإعدادات ← مِناوب ← الإشعارات.")).font(.caption).foregroundStyle(.orange)
                 }
-                Text(Session.shared.online ? "متصل بخادم مِناوب: تصل تنبيهات Push لكل الفريق حتى والتطبيق مغلق." : "وضع محلي: التنبيهات من هذا الجهاز فقط. سجّل الدخول لتفعيل تنبيهات Push.")
+                Text(Session.shared.online ? L("متصل بخادم مِناوب: تصل تنبيهات Push لكل الفريق حتى والتطبيق مغلق.") : L("وضع محلي: التنبيهات من هذا الجهاز فقط. سجّل الدخول لتفعيل تنبيهات Push."))
                     .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             .card()
             NotificationTestPanel()
             VStack(alignment: .leading, spacing: 12) {
-                Text("متى يرسل النظام؟").font(.title3.bold())
-                Label("اعتماد الجدول — بعد الاعتماد فقط.", systemImage: "paperplane")
-                Label("بداية الشفت — قبل البداية بـ \(store.data.settings.reminderMinutesBefore) دقيقة.", systemImage: "alarm")
-                Label("الدورات والفعاليات — قبلها بساعة.", systemImage: "book.pages")
+                Text(L("متى يرسل النظام؟")).font(.title3.bold())
+                Label(L("اعتماد الجدول — بعد الاعتماد فقط."), systemImage: "paperplane")
+                Label(L("بداية الشفت — قبل البداية بـ %@ دقيقة.", "\(store.data.settings.reminderMinutesBefore)"), systemImage: "alarm")
+                Label(L("الدورات والفعاليات — قبلها بساعة."), systemImage: "book.pages")
             }
             .card()
             VStack(alignment: .leading, spacing: 10) {
-                Text("\(store.data.sendLog.count) عملية إرسال").font(.caption).foregroundStyle(.secondary)
-                Text("سجل الإرسال").font(.title3.bold())
+                Text(L("%@ عملية إرسال", "\(store.data.sendLog.count)")).font(.caption).foregroundStyle(.secondary)
+                Text(L("سجل الإرسال")).font(.title3.bold())
                 ForEach(store.data.sendLog.prefix(30)) { l in
                     VStack(alignment: .leading) {
                         Text(l.title).font(.subheadline.bold())
@@ -185,14 +185,18 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var store = store
         VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L("اللغة / Language")).font(.title3.bold())
+                LanguagePicker()
+            }.card()
             if Session.shared.online || Session.shared.demoInfo { HospitalInfoCard() }
             VStack(alignment: .leading, spacing: 12) {
-                Text("المستشفى").font(.title3.bold())
-                AppTextField(placeholder: "اسم المستشفى", text: $store.data.settings.hospital).frame(minHeight: 32)
+                Text(L("المستشفى")).font(.title3.bold())
+                AppTextField(placeholder: L("اسم المستشفى"), text: $store.data.settings.hospital).frame(minHeight: 32)
                     .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
             }.card()
             VStack(alignment: .leading, spacing: 10) {
-                Text("الأقسام").font(.title3.bold())
+                Text(L("الأقسام")).font(.title3.bold())
                 ForEach(store.data.settings.departments, id: \.self) { d in
                     HStack {
                         Text(d)
@@ -202,13 +206,13 @@ struct SettingsView: View {
                                 store.data.settings.departments.removeAll { $0 == d }
                                 if store.data.selectedDepartment == d { store.selectDepartment(store.data.settings.departments[0]) }
                             } label: { Image(systemName: "minus.circle") }
-                            .accessibilityLabel("حذف القسم")
+                            .accessibilityLabel(L("حذف القسم"))
                         }
                     }
                 }
                 HStack {
-                    AppTextField(placeholder: "قسم جديد", text: $newDept).frame(minHeight: 32)
-                    Button("إضافة") {
+                    AppTextField(placeholder: L("قسم جديد"), text: $newDept).frame(minHeight: 32)
+                    Button(L("إضافة")) {
                         let n = newDept.trimmingCharacters(in: .whitespaces)
                         if !n.isEmpty && !store.data.settings.departments.contains(n) { store.data.settings.departments.append(n); Task { try? await Session.shared.addDepartment(n) } }
                         newDept = ""
@@ -217,23 +221,23 @@ struct SettingsView: View {
                 .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
             }.card()
             VStack(alignment: .leading, spacing: 10) {
-                Text("أوقات الشفتات").font(.title3.bold())
-                Stepper("بداية النهاري: \(store.data.settings.dayStartHour):00", value: $store.data.settings.dayStartHour, in: 0...23)
-                Stepper("بداية الليلي: \(store.data.settings.nightStartHour):00", value: $store.data.settings.nightStartHour, in: 0...23)
-                Stepper("طول الشفت: \(store.data.settings.shiftLength) ساعة", value: $store.data.settings.shiftLength, in: 4...24)
-                Stepper("التذكير قبل: \(store.data.settings.reminderMinutesBefore) دقيقة", value: $store.data.settings.reminderMinutesBefore, in: 0...240, step: 15)
-                Button("تطبيق على التنبيهات") { Task { await store.rescheduleNotifications(); try? await Session.shared.updateProfile(name: nil, phone: nil, photo: nil, reminder: store.data.settings.reminderMinutesBefore) } }.buttonStyle(.bordered)
+                Text(L("أوقات الشفتات")).font(.title3.bold())
+                Stepper(L("بداية النهاري: %@:00", "\(store.data.settings.dayStartHour)"), value: $store.data.settings.dayStartHour, in: 0...23)
+                Stepper(L("بداية الليلي: %@:00", "\(store.data.settings.nightStartHour)"), value: $store.data.settings.nightStartHour, in: 0...23)
+                Stepper(L("طول الشفت: %@ ساعة", "\(store.data.settings.shiftLength)"), value: $store.data.settings.shiftLength, in: 4...24)
+                Stepper(L("التذكير قبل: %@ دقيقة", "\(store.data.settings.reminderMinutesBefore)"), value: $store.data.settings.reminderMinutesBefore, in: 0...240, step: 15)
+                Button(L("تطبيق على التنبيهات")) { Task { await store.rescheduleNotifications(); try? await Session.shared.updateProfile(name: nil, phone: nil, photo: nil, reminder: store.data.settings.reminderMinutesBefore) } }.buttonStyle(.bordered)
             }.card()
-            Button("إعادة البيانات التجريبية", role: .destructive) { confirmReset = true }
-                .confirmationDialog("سيتم حذف كل البيانات", isPresented: $confirmReset, titleVisibility: .visible) {
-                    Button("إعادة تعيين", role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
+            Button(L("إعادة البيانات التجريبية"), role: .destructive) { confirmReset = true }
+                .confirmationDialog(L("سيتم حذف كل البيانات"), isPresented: $confirmReset, titleVisibility: .visible) {
+                    Button(L("إعادة تعيين"), role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
                 }
             ProfileCard()
             NotificationTestPanel()
             if Session.shared.online { DeleteAccountCard() }
-            Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? "الخروج من الوضع المحلي" : "تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right") }
+            Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? L("الخروج من الوضع المحلي") : L("تسجيل الخروج"), systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
-            Text("مِناوب 2.2 — \(Session.shared.online ? "متزامن مع الخادم" : "البيانات على هذا الجهاز")").font(.caption).foregroundStyle(.secondary)
+            Text(L("مِناوب 2.2 — %@", "\(Session.shared.online ? L("متزامن مع الخادم") : L("البيانات على هذا الجهاز"))")).font(.caption).foregroundStyle(.secondary)
         }
     }
 }

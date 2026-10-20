@@ -93,7 +93,7 @@ extension ShiftCode {
 }
 
 enum Fmt {
-    static let ar = Locale(identifier: "ar")
+    static var ar: Locale { LanguageManager.current.locale }
     static func date(_ d: Date, _ format: String) -> String {
         let f = DateFormatter(); f.locale = ar; f.dateFormat = format; return f.string(from: d)
     }

@@ -18,14 +18,14 @@ struct EmployeeForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                AppTextField(placeholder: "الاسم", text: $name).frame(minHeight: 32)
-                AppTextField(placeholder: "المسمى الوظيفي", text: $title).frame(minHeight: 32)
-                NumericField(placeholder: "الرقم الوظيفي", text: $number, identifier: "employee.number")
-                AppTextField(placeholder: "الجوال", text: $phone, keyboard: .phonePad, ltr: true).frame(minHeight: 32)
+                AppTextField(placeholder: L("الاسم"), text: $name).frame(minHeight: 32)
+                AppTextField(placeholder: L("المسمى الوظيفي"), text: $title).frame(minHeight: 32)
+                NumericField(placeholder: L("الرقم الوظيفي"), text: $number, identifier: "employee.number")
+                AppTextField(placeholder: L("الجوال"), text: $phone, keyboard: .phonePad, ltr: true).frame(minHeight: 32)
                 if Session.shared.online && Session.shared.me?.isHead == true {
-                    Picker("الصلاحية", selection: $role) {
-                        Text("موظف").tag("employee"); Text("مشرف").tag("supervisor")
-                        if Session.shared.me?.role == "admin" { Text("رئيسة تمريض").tag("head_nurse"); Text("مدير").tag("admin") }
+                    Picker(L("الصلاحية"), selection: $role) {
+                        Text(L("موظف")).tag("employee"); Text(L("مشرف")).tag("supervisor")
+                        if Session.shared.me?.role == "admin" { Text(L("رئيسة تمريض")).tag("head_nurse"); Text(L("مدير")).tag("admin") }
                     }
                     .onChange(of: role) { _, r in
                         guard let employee, r != originalRole else { return }
@@ -33,26 +33,26 @@ struct EmployeeForm: View {
                     }
                     if let employee, let u = Session.shared.user(employee.id.uuidString.lowercased()) {
                         if let c = resetCode ?? u.invite_code {
-                            Section { InviteCodeRow(code: c, name: u.name, number: u.employee_number) } header: { Text("كود التفعيل — الحساب غير مفعّل") }
+                            Section { InviteCodeRow(code: c, name: u.name, number: u.employee_number) } header: { Text(L("كود التفعيل — الحساب غير مفعّل")) }
                         } else {
                             Section {
-                                Button("إعادة تعيين كلمة المرور (كود جديد)", role: .destructive) {
+                                Button(L("إعادة تعيين كلمة المرور (كود جديد)"), role: .destructive) {
                                     Task { do { resetCode = try await Session.shared.resetInvite(employee.id) } catch { self.error = (error as? LocalizedError)?.errorDescription } }
                                 }
-                            } footer: { Text("يُلغى الدخول الحالي ويظهر كود تفعيل جديد للموظف.") }
+                            } footer: { Text(L("يُلغى الدخول الحالي ويظهر كود تفعيل جديد للموظف.")) }
                         }
                     }
                 }
                 if let invite {
-                    Section { InviteCodeRow(code: invite.invite_code, name: invite.user.name, number: invite.user.employee_number) } header: { Text("تمت الإضافة — كود التفعيل") }
+                    Section { InviteCodeRow(code: invite.invite_code, name: invite.user.name, number: invite.user.employee_number) } header: { Text(L("تمت الإضافة — كود التفعيل")) }
                 }
                 if let error { Text(error).foregroundStyle(.red) }
-                Picker("القسم", selection: $dept) {
+                Picker(L("القسم"), selection: $dept) {
                     ForEach(store.data.settings.departments, id: \.self) { Text($0).tag($0) }
                 }
                 if let employee {
                     Section {
-                        Button("حذف الموظف", role: .destructive) {
+                        Button(L("حذف الموظف"), role: .destructive) {
                             store.data.employees.removeAll { $0.id == employee.id }
                             Task { try? await Session.shared.deleteEmployee(employee.id) }
                             dismiss()
@@ -60,12 +60,12 @@ struct EmployeeForm: View {
                     }
                 }
             }
-            .navigationTitle(employee == nil ? "إضافة موظف" : "تعديل موظف")
+            .navigationTitle(employee == nil ? L("إضافة موظف") : L("تعديل موظف"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(invite == nil ? "حفظ" : "تم") { save() }.disabled(name.isEmpty || number.isEmpty)
+                    Button(invite == nil ? L("حفظ") : L("تم")) { save() }.disabled(name.isEmpty || number.isEmpty)
                 }
             }
             .onAppear {
@@ -74,7 +74,7 @@ struct EmployeeForm: View {
             }
         }
         .keyboardDone()
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 
     private func save() {
@@ -89,12 +89,12 @@ struct EmployeeForm: View {
             Task {
                 do {
                     invite = try await Session.shared.createEmployee(name: name, title: title, number: number, dept: dept, phone: phone, role: role)
-                    store.log("دعوة موظف", "\(name) — رمز \(invite?.invite_code ?? "")")
+                    store.log(L("دعوة موظف"), L("%1$@ — رمز %2$@", "\(name)", "\(invite?.invite_code ?? "")"))
                 } catch { self.error = (error as? LocalizedError)?.errorDescription }
             }
         } else {
             store.data.employees.append(Employee(name: name, title: title, employeeNumber: number, department: dept, phone: phone))
-            store.log("دعوة موظف", "\(name) — \(number)")
+            store.log(L("دعوة موظف"), "\(name) — \(number)")
             dismiss()
         }
     }
@@ -112,22 +112,22 @@ struct HoursForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                Picker("الموظف", selection: $empID) {
+                Picker(L("الموظف"), selection: $empID) {
                     ForEach(store.departmentEmployees) { Text($0.name).tag(Optional($0.id)) }
                 }
-                Picker("النوع", selection: $kind) {
+                Picker(L("النوع"), selection: $kind) {
                     ForEach(HourKind.allCases) { Text("\($0.rawValue) — \($0.title)").tag($0) }
                 }
-                DatePicker("التاريخ", selection: $date, displayedComponents: .date)
-                Stepper("الساعات: \(Fmt.hours(hours))", value: $hours, in: 0.5...24, step: 0.5)
-                AppTextField(placeholder: "ملاحظة", text: $note).frame(minHeight: 32)
+                DatePicker(L("التاريخ"), selection: $date, displayedComponents: .date)
+                Stepper(L("الساعات: %@", "\(Fmt.hours(hours))"), value: $hours, in: 0.5...24, step: 0.5)
+                AppTextField(placeholder: L("ملاحظة"), text: $note).frame(minHeight: 32)
             }
-            .navigationTitle("إضافة سجل ساعات")
+            .navigationTitle(L("إضافة سجل ساعات"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("حفظ") {
+                    Button(L("حفظ")) {
                         if let empID { let h = HourLog(employeeID: empID, date: date, kind: kind, hours: hours, note: note); store.data.hours.append(h); Task { try? await Session.shared.addHours(h) } }
                         dismiss()
                     }.disabled(empID == nil)
@@ -139,7 +139,7 @@ struct HoursForm: View {
             }
         }
         .keyboardDone()
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }
 
@@ -154,19 +154,19 @@ struct EventForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32)
-                DatePicker("الموعد", selection: $date)
-                AppTextField(placeholder: "المكان", text: $location).frame(minHeight: 32)
-                Toggle("لكل المستشفى", isOn: $allHospital)
+                AppTextField(placeholder: L("العنوان"), text: $title).frame(minHeight: 32)
+                DatePicker(L("الموعد"), selection: $date)
+                AppTextField(placeholder: L("المكان"), text: $location).frame(minHeight: 32)
+                Toggle(L("لكل المستشفى"), isOn: $allHospital)
             }
-            .navigationTitle("دورة أو فعالية")
+            .navigationTitle(L("دورة أو فعالية"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("حفظ") {
-                        let ev = HospitalEvent(title: title, date: date, location: location, audience: allHospital ? "كل المستشفى" : store.data.selectedDepartment); store.data.events.append(ev); Task { try? await Session.shared.addEvent(ev) }
-                        store.log("إضافة فعالية", title)
+                    Button(L("حفظ")) {
+                        let ev = HospitalEvent(title: title, date: date, location: location, audience: allHospital ? L("كل المستشفى") : store.data.selectedDepartment); store.data.events.append(ev); Task { try? await Session.shared.addEvent(ev) }
+                        store.log(L("إضافة فعالية"), title)
                         Task { await store.rescheduleNotifications() }
                         dismiss()
                     }.disabled(title.isEmpty)
@@ -174,6 +174,6 @@ struct EventForm: View {
             }
         }
         .keyboardDone()
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }

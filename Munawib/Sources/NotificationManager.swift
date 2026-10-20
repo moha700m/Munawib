@@ -48,14 +48,14 @@ final class NotificationManager {
                     let fire = start.addingTimeInterval(TimeInterval(-s.reminderMinutesBefore * 60))
                     if fire > now {
                         let who = me == nil ? "\(emp.name): " : ""
-                        items.append((fire, "تذكير بالمناوبة", "\(who)الشفت ال\(code.title) يبدأ الساعة \(comps.hour!):00 (\(s.shiftLength) ساعة)"))
+                        items.append((fire, L("تذكير بالمناوبة"), L("%1$@الشفت ال%2$@ يبدأ الساعة %3$@:00 (%4$@ ساعة)", "\(who)", "\(code.title)", "\(comps.hour!)", "\(s.shiftLength)")))
                     }
                 }
             }
         }
         for ev in store.data.events {
             let fire = ev.date.addingTimeInterval(-3600)
-            if fire > now { items.append((fire, "فعالية قادمة", "\(ev.title) — \(ev.location)")) }
+            if fire > now { items.append((fire, L("فعالية قادمة"), "\(ev.title) — \(ev.location)")) }
         }
         items.sort { $0.0 < $1.0 }
         for (date, title, body) in items.prefix(60) {
@@ -65,6 +65,6 @@ final class NotificationManager {
             let trig = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
             try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: trig))
         }
-        store.log("جدولة التنبيهات", "تمت جدولة \(min(items.count, 60)) تنبيه على هذا الجهاز")
+        store.log(L("جدولة التنبيهات"), L("تمت جدولة %@ تنبيه على هذا الجهاز", "\(min(items.count, 60))"))
     }
 }

@@ -2,7 +2,7 @@ name: UI Tests
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, l10n]
 jobs:
   uitests:
     runs-on: macos-26

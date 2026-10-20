@@ -22,24 +22,32 @@ struct APIError: LocalizedError {
     let status: Int; let message: String
     var errorDescription: String? {
         switch message {
-        case "invalid credentials", "wrong password": return "كلمة المرور غير صحيحة"
-        case "account not found": return "لا يوجد حساب بهذا البريد أو الرقم الوظيفي"
-        case "hospital not found": return "رمز المستشفى غير صحيح"
-        case "account not activated": return "الحساب غير مفعّل، استخدم كود الدعوة من رئيسة التمريض أو المدير"
-        case "offline": return "لا يوجد اتصال بالإنترنت"
-        case "unreachable": return "تعذّر الوصول إلى خادم المستشفى، تحقّق من إعدادات الخادم"
-        case "missing fields": return "أكمل الحقول المطلوبة"
-        case "too many attempts": return "محاولات كثيرة غير صحيحة. حاول مجددًا بعد 15 دقيقة."
-        case "session expired": return "انتهت الجلسة، سجّل الدخول مجددًا"
-        case "duplicate employee number": return "رقمك الوظيفي يجب أن يختلف عن رقم رئيسة التمريض"
-        case "email exists": return "البريد مسجّل مسبقًا"
-        case "invalid invite": return "رمز الدعوة غير صحيح أو مستخدم"
-        case "password too short": return "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
-        case "forbidden": return "ليست لديك صلاحية"
-        case "employee number exists": return "الرقم الوظيفي مستخدم مسبقًا"
-        case "colleague must be in your department": return "الزميل يجب أن يكون في قسمك"
-        case "unauthorized": return "انتهت الجلسة، سجّل الدخول مجددًا"
-        default: return message.isEmpty ? "تعذّر الاتصال بالخادم" : message
+        case "invalid credentials", "wrong password": return L("كلمة المرور غير صحيحة")
+        case "account not found": return L("لا يوجد حساب بهذا البريد أو الرقم الوظيفي")
+        case "hospital not found": return L("رمز المستشفى غير صحيح")
+        case "account not activated": return L("الحساب غير مفعّل، استخدم كود الدعوة من رئيسة التمريض أو المدير")
+        case "offline": return L("لا يوجد اتصال بالإنترنت")
+        case "unreachable": return L("تعذّر الوصول إلى خادم المستشفى، تحقّق من إعدادات الخادم")
+        case "missing fields": return L("أكمل الحقول المطلوبة")
+        case "too many attempts": return L("محاولات كثيرة غير صحيحة. حاول مجددًا بعد 15 دقيقة.")
+        case "session expired": return L("انتهت الجلسة، سجّل الدخول مجددًا")
+        case "duplicate employee number": return L("رقمك الوظيفي يجب أن يختلف عن رقم رئيسة التمريض")
+        case "email exists": return L("البريد مسجّل مسبقًا")
+        case "invalid invite": return L("رمز الدعوة غير صحيح أو مستخدم")
+        case "password too short": return L("كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+        case "forbidden": return L("ليست لديك صلاحية")
+        case "employee number exists": return L("الرقم الوظيفي مستخدم مسبقًا")
+        case "colleague must be in your department": return L("الزميل يجب أن يكون في قسمك")
+        case "unauthorized": return L("انتهت الجلسة، سجّل الدخول مجددًا")
+        case "not found": return L("العنصر غير موجود أو تم حذفه")
+        case "cannot change own role": return L("لا يمكنك تغيير صلاحيتك بنفسك")
+        case "cannot delete self": return L("لا يمكنك حذف حسابك من هنا، استخدم «حذف الحساب» في الإعدادات")
+        case "cannot reset self": return L("لا يمكنك إعادة تعيين حسابك بنفسك")
+        case "APNs not configured": return L("خدمة الإشعارات غير مهيأة على الخادم")
+        case "bad status", "bad token": return L("طلب غير صالح، حدّث التطبيق وحاول مجددًا")
+        case "server error": return L("حدث خطأ في الخادم، حاول لاحقًا")
+        case "bad url", "not munawib": return L("تعذّر الوصول إلى خادم مِناوب على هذا الرابط")
+        default: return message.isEmpty ? L("تعذّر الاتصال بالخادم") : L("حدث خطأ غير متوقع (%@)", "\(status)")
         }
     }
 }
@@ -49,7 +57,7 @@ struct RUser: Codable, Identifiable, Hashable {
     var id: String; var hospital_id: String; var department_id: String?; var email: String?; var name: String
     var title: String?; var employee_number: String?; var role: String; var phone: String?; var photo: String?
     var reminder_minutes: Int?; var invite_code: String?; var joined: Bool?
-    var roleTitle: String { role == "admin" ? "مدير" : role == "head_nurse" ? "رئيسة تمريض" : role == "supervisor" ? "مشرف" : "موظف" }
+    var roleTitle: String { role == "admin" ? L("مدير") : role == "head_nurse" ? L("رئيسة تمريض") : role == "supervisor" ? L("مشرف") : L("موظف") }
     var isManager: Bool { role == "admin" || role == "head_nurse" || role == "supervisor" }
     var isHead: Bool { role == "admin" || role == "head_nurse" }
 }
@@ -104,6 +112,7 @@ final class APIClient {
         var req = URLRequest(url: Self.baseURL.appendingPathComponent(path))
         req.httpMethod = method
         req.timeoutInterval = 25
+        req.setValue(LanguageManager.current.rawValue, forHTTPHeaderField: "Accept-Language")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")

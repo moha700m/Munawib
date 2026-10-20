@@ -19,22 +19,22 @@ struct ImportRosterSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    PhotosPicker(selection: $photo, matching: .images) { Label("اختيار صورة من الصور", systemImage: "photo") }
-                    Button { showFiles = true } label: { Label("اختيار PDF أو صورة من الملفات", systemImage: "doc") }
+                    PhotosPicker(selection: $photo, matching: .images) { Label(L("اختيار صورة من الصور"), systemImage: "photo") }
+                    Button { showFiles = true } label: { Label(L("اختيار PDF أو صورة من الملفات"), systemImage: "doc") }
                 } footer: {
-                    Text("ارفع صورة واضحة أو PDF. يحوّل النظام الصفحات إلى صور ثم يقرأ الجدول (أرقام وظيفية ورموز D/N/R) للمراجعة.")
+                    Text(L("ارفع صورة واضحة أو PDF. يحوّل النظام الصفحات إلى صور ثم يقرأ الجدول (أرقام وظيفية ورموز D/N/R) للمراجعة."))
                 }
-                if working { HStack { ProgressView(); Text("جاري قراءة الجدول…") } }
+                if working { HStack { ProgressView(); Text(L("جاري قراءة الجدول…")) } }
                 if let error { Text(error).foregroundStyle(.red) }
                 if let result {
-                    Section("النتيجة") {
-                        Text("تم التعرف على \(result.grid.count) موظف و\(result.cells) خانة.")
+                    Section(L("النتيجة")) {
+                        Text(L("تم التعرف على %1$@ موظف و%2$@ خانة.", "\(result.grid.count)", "\(result.cells)"))
                         ForEach(result.grid.keys.sorted(), id: \.self) { k in
                             let row = result.grid[k] ?? [:]
                             Text("\(k): " + row.keys.sorted().prefix(10).map { "\($0)\(row[$0]!.rawValue)" }.joined(separator: " "))
                                 .font(.caption.monospaced())
                         }
-                        Button("تطبيق على جدول \(store.monthTitle)") {
+                        Button(L("تطبيق على جدول %@", "\(store.monthTitle)")) {
                             store.applyImported(result.grid, source: sourceName)
                             dismiss()
                         }
@@ -42,9 +42,9 @@ struct ImportRosterSheet: View {
                     }
                 }
             }
-            .navigationTitle("رفع جدول")
+            .navigationTitle(L("رفع جدول"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("إغلاق") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("إغلاق")) { dismiss() } } }
             .fileImporter(isPresented: $showFiles, allowedContentTypes: [.pdf, .image]) { r in
                 if case .success(let url) = r { Task { await loadFile(url) } }
             }
@@ -53,14 +53,14 @@ struct ImportRosterSheet: View {
                 Task {
                     working = true
                     if let data = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: data) {
-                        sourceName = "صورة من الصور"
+                        sourceName = L("صورة من الصور")
                         await process([img])
-                    } else { error = "تعذّر فتح الصورة" }
+                    } else { error = L("تعذّر فتح الصورة") }
                     working = false
                 }
             }
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 
     private func loadFile(_ url: URL) async {
@@ -78,7 +78,7 @@ struct ImportRosterSheet: View {
         } else if let d = try? Data(contentsOf: url), let img = UIImage(data: d) {
             images = [img]
         }
-        if images.isEmpty { error = "الملف غير مدعوم"; return }
+        if images.isEmpty { error = L("الملف غير مدعوم"); return }
         await process(images)
     }
 
@@ -89,7 +89,7 @@ struct ImportRosterSheet: View {
         let known = store.departmentEmployees.map(\.employeeNumber)
         let r = RosterParser.parse(all, knownNumbers: known)
         result = r
-        if r.grid.isEmpty { error = "لم يتم التعرف على صفوف موظفين. تأكد أن الأرقام الوظيفية ظاهرة." }
+        if r.grid.isEmpty { error = L("لم يتم التعرف على صفوف موظفين. تأكد أن الأرقام الوظيفية ظاهرة.") }
     }
 }
 

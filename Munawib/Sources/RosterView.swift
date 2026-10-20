@@ -12,55 +12,55 @@ struct RosterView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Button { store.shiftMonth(-1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
-                    .accessibilityLabel("الشهر السابق")
+                    .accessibilityLabel(L("الشهر السابق"))
                 Spacer()
                 VStack {
-                    Text("المصدر: \(store.roster.source ?? "لم يُرفع جدول بعد")").font(.caption).foregroundStyle(.secondary)
-                    Text("جدول \(store.monthTitle) — \(store.data.selectedDepartment)").font(.headline).multilineTextAlignment(.center)
+                    Text(L("المصدر: %@", "\(store.roster.source ?? L("لم يُرفع جدول بعد"))")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("جدول %1$@ — %2$@", "\(store.monthTitle)", "\(store.data.selectedDepartment)")).font(.headline).multilineTextAlignment(.center)
                 }
                 Spacer()
                 Button { store.shiftMonth(1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                    .accessibilityLabel("الشهر التالي")
+                    .accessibilityLabel(L("الشهر التالي"))
             }
             HStack {
                 StatusBadge(status: store.roster.status)
                 Spacer()
-                Button("حفظ المراجعة") {
+                Button(L("حفظ المراجعة")) {
                     store.markReviewed()
-                    Task { do { _ = try await Session.shared.pushRoster(store.roster, status: "review"); syncMsg = Session.shared.online ? "تم الحفظ على الخادم" : nil } catch { syncMsg = (error as? LocalizedError)?.errorDescription } }
+                    Task { do { _ = try await Session.shared.pushRoster(store.roster, status: "review"); syncMsg = Session.shared.online ? L("تم الحفظ على الخادم") : nil } catch { syncMsg = (error as? LocalizedError)?.errorDescription } }
                 }.buttonStyle(.bordered).disabled(!Session.shared.isManager)
                 Button {
                     Task {
                         approving = true; await store.approve()
-                        do { let n = try await Session.shared.pushRoster(store.roster, status: "approved"); if Session.shared.online { syncMsg = "تم الاعتماد وإرسال \(n) تنبيه Push" } } catch { syncMsg = (error as? LocalizedError)?.errorDescription }
+                        do { let n = try await Session.shared.pushRoster(store.roster, status: "approved"); if Session.shared.online { syncMsg = L("تم الاعتماد وإرسال %@ تنبيه Push", "\(n)") } } catch { syncMsg = (error as? LocalizedError)?.errorDescription }
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         approving = false
                     }
-                } label: { Label("اعتماد وإرسال", systemImage: "paperplane") }
+                } label: { Label(L("اعتماد وإرسال"), systemImage: "paperplane") }
                 .buttonStyle(.borderedProminent)
                 .disabled(approving || store.roster.status == .approved || !Session.shared.isManager)
             }
             if let syncMsg { Text(syncMsg).font(.caption).foregroundStyle(Theme.primary) }
-            Label("اضغط على أي خانة لتغيير الرمز. أي تعديل بعد الاعتماد يعيد الجدول مسودة.", systemImage: "sparkles")
+            Label(L("اضغط على أي خانة لتغيير الرمز. أي تعديل بعد الاعتماد يعيد الجدول مسودة."), systemImage: "sparkles")
                 .font(.footnote).foregroundStyle(Theme.primary)
                 .padding(10).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
             if emps.isEmpty {
-                ContentUnavailableView("لا يوجد موظفون", systemImage: "person.2.slash", description: Text("أضف موظفين لهذا القسم أولاً."))
+                ContentUnavailableView(L("لا يوجد موظفون"), systemImage: "person.2.slash", description: Text(L("أضف موظفين لهذا القسم أولاً.")))
             } else {
                 ScrollView(.horizontal) {
                     Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                         GridRow {
-                            Text("الموظف").frame(width: 150, alignment: .leading)
-                            Text("الرقم").frame(width: 50)
+                            Text(L("الموظف")).frame(width: 150, alignment: .leading)
+                            Text(L("الرقم")).frame(width: 50)
                             ForEach(1...store.daysInMonth, id: \.self) { d in
                                 VStack(spacing: 0) {
                                     Text(weekday(d)).font(.caption2)
                                     Text("\(d)").font(.caption.bold())
                                 }.frame(width: 40)
                             }
-                            Text("ساعات").frame(width: 50)
+                            Text(L("ساعات")).frame(width: 50)
                         }
                         .font(.caption).foregroundStyle(.secondary)
                         ForEach(emps) { e in
@@ -81,10 +81,10 @@ struct RosterView: View {
                 legend
                 Button {
                     pdfURL = RosterPDF.make(store: store)
-                } label: { Label("تصدير PDF", systemImage: "doc.richtext") }
+                } label: { Label(L("تصدير PDF"), systemImage: "doc.richtext") }
                 .buttonStyle(OutlineButtonStyle())
                 if let pdfURL {
-                    ShareLink(item: pdfURL) { Label("مشاركة ملف الجدول", systemImage: "square.and.arrow.up") }
+                    ShareLink(item: pdfURL) { Label(L("مشاركة ملف الجدول"), systemImage: "square.and.arrow.up") }
                         .buttonStyle(PrimaryButtonStyle())
                 }
             }
@@ -132,7 +132,7 @@ struct CodeCell: View {
             UISelectionFeedbackGenerator().selectionChanged()
         }
         .disabled(!Session.shared.isManager)
-        .accessibilityLabel("يوم \(day): \(c.title)")
+        .accessibilityLabel(L("يوم %1$@: %2$@", "\(day)", "\(c.title)"))
     }
 }
 
@@ -147,7 +147,7 @@ enum RosterPDF {
         do {
             try renderer.writePDF(to: url) { ctx in
                 ctx.beginPage()
-                let title = "\(store.data.settings.hospital) — جدول \(store.monthTitle) — \(store.data.selectedDepartment) (\(store.roster.status.title))"
+                let title = L("%1$@ — جدول %2$@ — %3$@ (%4$@)", "\(store.data.settings.hospital)", "\(store.monthTitle)", "\(store.data.selectedDepartment)", "\(store.roster.status.title)")
                 let para = NSMutableParagraphStyle(); para.alignment = .right; para.baseWritingDirection = .rightToLeft
                 (title as NSString).draw(in: CGRect(x: 20, y: 20, width: 802, height: 30), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 15), .paragraphStyle: para])
                 let nameW: CGFloat = 130

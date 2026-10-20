@@ -5,12 +5,12 @@ enum ShiftCode: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .day: return "نهاري"
-        case .night: return "ليلي"
-        case .rest: return "راحة"
-        case .leave: return "إجازة"
-        case .course: return "دورة"
-        case .empty: return "فارغ"
+        case .day: return L("نهاري")
+        case .night: return L("ليلي")
+        case .rest: return L("راحة")
+        case .leave: return L("إجازة")
+        case .course: return L("دورة")
+        case .empty: return L("فارغ")
         }
     }
     var label: String { self == .empty ? "—" : rawValue }
@@ -33,7 +33,7 @@ struct RosterEntry: Codable, Hashable {
 
 enum RosterStatus: String, Codable { case draft, reviewed, approved
     var title: String {
-        switch self { case .draft: return "مسودة"; case .reviewed: return "تمت المراجعة"; case .approved: return "معتمد" }
+        switch self { case .draft: return L("مسودة"); case .reviewed: return L("تمت المراجعة"); case .approved: return L("معتمد") }
     }
 }
 
@@ -52,12 +52,12 @@ enum HourKind: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .actual: return "الحضور الفعلي"
-        case .overtime: return "الإضافي"
-        case .standby: return "الاستعداد"
-        case .compensatory: return "الساعات التعويضية"
-        case .leave: return "الإجازات"
-        case .course: return "الدورات"
+        case .actual: return L("الحضور الفعلي")
+        case .overtime: return L("الإضافي")
+        case .standby: return L("الاستعداد")
+        case .compensatory: return L("الساعات التعويضية")
+        case .leave: return L("الإجازات")
+        case .course: return L("الدورات")
         }
     }
     var symbol: String { "clock" }

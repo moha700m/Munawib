@@ -25,7 +25,7 @@ final class Session {
     var isLoggedIn: Bool { offlineMode || (authToken != nil && me != nil) }
     var isManager: Bool { offlineMode || (me?.isManager ?? false) }
     var isHead: Bool { offlineMode || (me?.isHead ?? false) }
-    var roleTitle: String { offlineMode ? "وضع محلي" : (me?.roleTitle ?? "") }
+    var roleTitle: String { offlineMode ? L("وضع محلي") : (me?.roleTitle ?? "") }
     var savedHospitalCode: String { get { UserDefaults.standard.string(forKey: "hospitalCode") ?? "" } set { UserDefaults.standard.set(newValue, forKey: "hospitalCode") } }
     var signupInfo: String?
     var myDepartment: RDepartment? { remote?.departments.first { $0.id == me?.department_id } }
@@ -49,7 +49,7 @@ final class Session {
         if !headNurseName.isEmpty { b["head_nurse"] = ["name": headNurseName, "employee_number": headNurseNumber] }
         let r: AuthResponse = try await APIClient.shared.send("POST", "auth/signup", b)
         if r.hospital_code != nil { showHospitalCreated = true }
-        if let c = r.hospital_code { savedHospitalCode = c; signupInfo = "رمز المستشفى: \(c)" + (r.head_nurse_invite.map { "\nدعوة رئيسة التمريض: \($0)" } ?? "") }
+        if let c = r.hospital_code { savedHospitalCode = c; signupInfo = L("رمز المستشفى: %@", "\(c)") + (r.head_nurse_invite.map { L("\nدعوة رئيسة التمريض: %@", "\($0)") } ?? "") }
         try await finishAuth(r)
     }
     func login(identifier: String, hospitalCode: String, password: String) async throws {
@@ -64,14 +64,14 @@ final class Session {
     }
     /// Formatted Arabic login details (never includes passwords).
     var loginDetailsText: String {
-        var lines = ["بيانات الدخول إلى مِناوب"]
-        if let h = remote?.hospital { lines.append("المستشفى: \(h.name)") }
-        if let c = remote?.hospital?.code ?? (savedHospitalCode.isEmpty ? nil : savedHospitalCode) { lines.append("رمز المستشفى: \(c)") }
-        if let me { lines.append("\(me.roleTitle): \(me.name)" + (me.employee_number.map { $0.isEmpty ? "" : " — الرقم الوظيفي \($0)" } ?? "") + (me.email.map { " — \($0)" } ?? "")) }
+        var lines = [L("بيانات الدخول إلى مِناوب")]
+        if let h = remote?.hospital { lines.append(L("المستشفى: %@", "\(h.name)")) }
+        if let c = remote?.hospital?.code ?? (savedHospitalCode.isEmpty ? nil : savedHospitalCode) { lines.append(L("رمز المستشفى: %@", "\(c)")) }
+        if let me { lines.append("\(me.roleTitle): \(me.name)" + (me.employee_number.map { $0.isEmpty ? "" : L(" — الرقم الوظيفي %@", "\($0)") } ?? "") + (me.email.map { " — \($0)" } ?? "")) }
         for u in (remote?.users ?? []) where u.role == "head_nurse" && u.id != me?.id {
-            lines.append("رئيسة التمريض: \(u.name)" + (u.employee_number.map { " — الرقم الوظيفي \($0)" } ?? "") + (u.invite_code.map { " — كود التفعيل \($0)" } ?? " — مفعّل"))
+            lines.append(L("رئيسة التمريض: %@", "\(u.name)") + (u.employee_number.map { L(" — الرقم الوظيفي %@", "\($0)") } ?? "") + (u.invite_code.map { L(" — كود التفعيل %@", "\($0)") } ?? L(" — مفعّل")))
         }
-        lines.append("طريقة الدخول: افتح مِناوب ← أدخل الرقم الوظيفي ورمز المستشفى وكلمة المرور. أول مرة: «تفعيل حساب بدعوة».")
+        lines.append(L("طريقة الدخول: افتح مِناوب ← أدخل الرقم الوظيفي ورمز المستشفى وكلمة المرور. أول مرة: «تفعيل حساب بدعوة»."))
         return lines.joined(separator: "\n")
     }
     func loginEmployee(hospitalCode: String, number: String, password: String) async throws {
@@ -83,7 +83,7 @@ final class Session {
         struct R: Decodable { var recipients: Int; var sent: Int; var devices: Int }
         let r: R = try await APIClient.shared.send("POST", "push/custom", ["title": title, "body": body, "user_ids": userIDs])
         try? await refresh()
-        return "أُرسل إلى \(r.recipients) موظف (\(r.sent) من \(r.devices) جهاز)"
+        return L("أُرسل إلى %1$@ موظف (%2$@ من %3$@ جهاز)", "\(r.recipients)", "\(r.sent)", "\(r.devices)")
     }
     func setRole(_ id: UUID, role: String) async throws { try await APIClient.shared.call("POST", "employees/\(id.uuidString.lowercased())/role", ["role": role]); try? await refresh() }
     func setCoverage(minDay: Int, minNight: Int) async throws {
@@ -144,7 +144,7 @@ final class Session {
         } catch let e as APIError where e.status == 401 {
             logout(); throw e
         } catch {
-            lastError = (error as? LocalizedError)?.errorDescription ?? "تعذّر المزامنة — يتم عرض آخر بيانات محفوظة"
+            lastError = (error as? LocalizedError)?.errorDescription ?? L("تعذّر المزامنة — يتم عرض آخر بيانات محفوظة")
             throw error
         }
     }
@@ -171,7 +171,7 @@ final class Session {
         d.rosters = b.rosters.compactMap { r in
             var ro = Roster(id: UUID(uuidString: r.id) ?? UUID(), year: r.year, month: r.month, department: deptName(r.department_id))
             ro.status = r.status == "approved" ? .approved : r.status == "review" ? .reviewed : .draft
-            ro.source = "الخادم"
+            ro.source = L("الخادم")
             ro.entries = r.grid.compactMap { k, v in
                 guard let id = UUID(uuidString: k) else { return nil }
                 return RosterEntry(employeeID: id, codes: v.compactMapValues { ShiftCode(rawValue: $0) })
@@ -281,14 +281,14 @@ final class Session {
     }
 
     func sendServerTestPush() async {
-        guard online else { lastPushResult = "سجّل الدخول بحساب سحابي أولاً"; return }
+        guard online else { lastPushResult = L("سجّل الدخول بحساب سحابي أولاً"); return }
         if deviceToken != nil && !tokenRegistered { await uploadToken() }
         do {
             let r: PushTestResponse = try await APIClient.shared.send("POST", "push/test")
-            if r.devices == 0 { lastPushResult = "لا يوجد جهاز مسجّل على الخادم" }
-            else if r.sent > 0 { lastPushResult = "✅ أُرسل إلى \(r.sent) من \(r.devices) جهاز" }
-            else { lastPushResult = "❌ رفضت Apple: " + r.results.map { "\($0.status) \($0.reason ?? "")" }.joined(separator: "، ") }
-        } catch { lastPushResult = "❌ " + ((error as? LocalizedError)?.errorDescription ?? "خطأ") }
+            if r.devices == 0 { lastPushResult = L("لا يوجد جهاز مسجّل على الخادم") }
+            else if r.sent > 0 { lastPushResult = L("✅ أُرسل إلى %1$@ من %2$@ جهاز", "\(r.sent)", "\(r.devices)") }
+            else { lastPushResult = L("❌ رفضت Apple: ") + r.results.map { "\($0.status) \($0.reason ?? "")" }.joined(separator: L("، ")) }
+        } catch { lastPushResult = "❌ " + ((error as? LocalizedError)?.errorDescription ?? L("خطأ")) }
     }
 }
 
@@ -304,7 +304,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         Session.shared.didRegister(token: deviceToken)
     }
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        Session.shared.lastPushResult = "فشل التسجيل في APNs: \(error.localizedDescription)"
+        Session.shared.lastPushResult = L("فشل التسجيل في APNs: %@", "\(error.localizedDescription)")
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         Task { try? await Session.shared.refresh() }

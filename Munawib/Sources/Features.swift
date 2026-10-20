@@ -14,35 +14,35 @@ struct NotificationTestPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("اختبار التنبيهات", systemImage: "bell.and.waves.left.and.right").font(.title3.bold())
+            Label(L("اختبار التنبيهات"), systemImage: "bell.and.waves.left.and.right").font(.title3.bold())
             VStack(alignment: .leading, spacing: 8) {
-                row("إذن الإشعارات", statusText, status == .authorized)
-                row("رمز الجهاز (APNs)", session.deviceToken == nil ? "غير متوفر" : "تم الحصول عليه", session.deviceToken != nil)
-                row("مسجّل على الخادم", session.tokenRegistered ? "نعم" : "لا", session.tokenRegistered)
-                if let r = session.lastPushResult { Text("آخر نتيجة Push: \(r)").font(.caption).foregroundStyle(.secondary) }
+                row(L("إذن الإشعارات"), statusText, status == .authorized)
+                row(L("رمز الجهاز (APNs)"), session.deviceToken == nil ? L("غير متوفر") : L("تم الحصول عليه"), session.deviceToken != nil)
+                row(L("مسجّل على الخادم"), session.tokenRegistered ? L("نعم") : L("لا"), session.tokenRegistered)
+                if let r = session.lastPushResult { Text(L("آخر نتيجة Push: %@", "\(r)")).font(.caption).foregroundStyle(.secondary) }
                 if let r = localResult { Text(r).font(.caption).foregroundStyle(.secondary) }
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
 
             if status != .authorized {
-                Button { Task { await session.registerForPush(); await refreshStatus() } } label: { Label("السماح بالإشعارات", systemImage: "bell.badge") }
+                Button { Task { await session.registerForPush(); await refreshStatus() } } label: { Label(L("السماح بالإشعارات"), systemImage: "bell.badge") }
                     .buttonStyle(PrimaryButtonStyle())
             }
             Button {
-                Task { await NotificationManager.shared.notifyNow(title: "اختبار محلي 🔔", body: "هذا تنبيه محلي من جهازك."); localResult = "تمت جدولة تنبيه محلي خلال ثانيتين"; haptic() }
-            } label: { Label("تنبيه محلي الآن", systemImage: "bell") }
+                Task { await NotificationManager.shared.notifyNow(title: L("اختبار محلي 🔔"), body: L("هذا تنبيه محلي من جهازك.")); localResult = L("تمت جدولة تنبيه محلي خلال ثانيتين"); haptic() }
+            } label: { Label(L("تنبيه محلي الآن"), systemImage: "bell") }
                 .buttonStyle(OutlineButtonStyle())
             Button {
-                Task { await NotificationManager.shared.notify(after: 10, title: "اختبار بعد 10 ثوانٍ ⏱️", body: "اقفل الشاشة أو اخرج من التطبيق لترى التنبيه."); localResult = "سيصلك تنبيه بعد 10 ثوانٍ — اخرج من التطبيق"; haptic() }
-            } label: { Label("تنبيه محلي بعد 10 ثوانٍ", systemImage: "timer") }
+                Task { await NotificationManager.shared.notify(after: 10, title: L("اختبار بعد 10 ثوانٍ ⏱️"), body: L("اقفل الشاشة أو اخرج من التطبيق لترى التنبيه.")); localResult = L("سيصلك تنبيه بعد 10 ثوانٍ — اخرج من التطبيق"); haptic() }
+            } label: { Label(L("تنبيه محلي بعد 10 ثوانٍ"), systemImage: "timer") }
                 .buttonStyle(OutlineButtonStyle())
             Button {
                 Task { sending = true; await session.sendServerTestPush(); sending = false; haptic() }
-            } label: { HStack { if sending { ProgressView() }; Label("Push حقيقي من الخادم لهذا الجهاز", systemImage: "antenna.radiowaves.left.and.right") } }
+            } label: { HStack { if sending { ProgressView() }; Label(L("Push حقيقي من الخادم لهذا الجهاز"), systemImage: "antenna.radiowaves.left.and.right") } }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(sending || !session.online)
-            if !session.online { Text("Push من الخادم يحتاج تسجيل الدخول بحساب سحابي.").font(.caption2).foregroundStyle(.secondary) }
+            if !session.online { Text(L("Push من الخادم يحتاج تسجيل الدخول بحساب سحابي.")).font(.caption2).foregroundStyle(.secondary) }
         }
         .card()
         .task { await refreshStatus() }
@@ -53,7 +53,7 @@ struct NotificationTestPanel: View {
         if status == .authorized { await MainActor.run { UIApplication.shared.registerForRemoteNotifications() } }
     }
     private var statusText: String {
-        switch status { case .authorized: return "مسموح"; case .denied: return "مرفوض — من إعدادات الجهاز"; case .provisional: return "مؤقت"; default: return "لم يُطلب" }
+        switch status { case .authorized: return L("مسموح"); case .denied: return L("مرفوض — من إعدادات الجهاز"); case .provisional: return L("مؤقت"); default: return L("لم يُطلب") }
     }
     private func row(_ t: String, _ v: String, _ ok: Bool) -> some View {
         HStack { Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(ok ? .green : .orange); Text(t); Spacer(); Text(v).foregroundStyle(.secondary) }.font(.subheadline)
@@ -77,10 +77,10 @@ struct ProfileCard: View {
                 .frame(width: 64, height: 64).clipShape(Circle())
                 .overlay(alignment: .bottomTrailing) { Image(systemName: "camera.circle.fill").foregroundStyle(Theme.primary).background(.white, in: Circle()) }
             }
-            .accessibilityLabel("تغيير الصورة الشخصية")
+            .accessibilityLabel(L("تغيير الصورة الشخصية"))
             VStack(alignment: .leading, spacing: 4) {
-                Text(session.me?.name ?? "مستخدم محلي").font(.headline)
-                Text(session.me.map { "\($0.roleTitle) · \(session.deptName($0.department_id))" } ?? "وضع محلي").font(.caption).foregroundStyle(.secondary)
+                Text(session.me?.name ?? L("مستخدم محلي")).font(.headline)
+                Text(session.me.map { "\($0.roleTitle) · \(session.deptName($0.department_id))" } ?? L("وضع محلي")).font(.caption).foregroundStyle(.secondary)
                 if let e = session.me?.email { Text(e).font(.caption2).foregroundStyle(.secondary) }
             }
             Spacer()
@@ -132,7 +132,7 @@ extension AppStore {
                 setCode(pattern[(d - 1 + off) % pattern.count], emp: e.id, day: d)
             }
         }
-        log("تعبئة تلقائية", "نمط \(pattern.map(\.rawValue).joined())")
+        log(L("تعبئة تلقائية"), L("نمط %@", "\(pattern.map(\.rawValue).joined())"))
     }
 }
 
@@ -146,14 +146,14 @@ struct CoverageWarnings: View {
     var body: some View {
         let short = (1...store.daysInMonth).filter { let c = store.coverage(day: $0); return c.day < minDay || c.night < minNight }
         VStack(alignment: .leading, spacing: 8) {
-            Label(short.isEmpty ? "التغطية مكتملة لكل الأيام" : "\(short.count) يوم بتغطية ناقصة", systemImage: short.isEmpty ? "checkmark.shield" : "exclamationmark.triangle.fill")
+            Label(short.isEmpty ? L("التغطية مكتملة لكل الأيام") : L("%@ يوم بتغطية ناقصة", "\(short.count)"), systemImage: short.isEmpty ? "checkmark.shield" : "exclamationmark.triangle.fill")
                 .font(.headline).foregroundStyle(short.isEmpty ? .green : .orange)
             HStack {
-                Stepper("نهاري ≥ \(minDay)", value: $minDay, in: 0...20)
-                Stepper("ليلي ≥ \(minNight)", value: $minNight, in: 0...20)
+                Stepper(L("نهاري ≥ %@", "\(minDay)"), value: $minDay, in: 0...20)
+                Stepper(L("ليلي ≥ %@", "\(minNight)"), value: $minNight, in: 0...20)
             }.font(.caption).disabled(!Session.shared.isHead)
             if Session.shared.online && Session.shared.me?.isHead == true {
-                Button("حفظ الحد الأدنى للقسم") { Task { try? await Session.shared.setCoverage(minDay: minDay, minNight: minNight) } }.font(.caption).buttonStyle(.bordered)
+                Button(L("حفظ الحد الأدنى للقسم")) { Task { try? await Session.shared.setCoverage(minDay: minDay, minNight: minNight) } }.font(.caption).buttonStyle(.bordered)
             }
             if !short.isEmpty {
                 ScrollView(.horizontal) {
@@ -179,29 +179,29 @@ struct AutoFillSheet: View {
     @State private var staggered = true
     @State private var fair = true
     private let templates: [(String, [ShiftCode])] = [
-        ("2 نهاري · 2 ليلي · 2 راحة", [.day, .day, .night, .night, .rest, .rest]),
-        ("4 نهاري · 3 راحة", [.day, .day, .day, .day, .rest, .rest, .rest]),
-        ("3 ليلي · 3 راحة", [.night, .night, .night, .rest, .rest, .rest]),
-        ("5 نهاري · 2 راحة", [.day, .day, .day, .day, .day, .rest, .rest]),
+        (L("2 نهاري · 2 ليلي · 2 راحة"), [.day, .day, .night, .night, .rest, .rest]),
+        (L("4 نهاري · 3 راحة"), [.day, .day, .day, .day, .rest, .rest, .rest]),
+        (L("3 ليلي · 3 راحة"), [.night, .night, .night, .rest, .rest, .rest]),
+        (L("5 نهاري · 2 راحة"), [.day, .day, .day, .day, .day, .rest, .rest]),
     ]
     var body: some View {
         NavigationStack {
             Form {
-                Toggle("توزيع عادل تلقائي (يوازن النهاري/الليلي/نهاية الأسبوع)", isOn: $fair)
+                Toggle(L("توزيع عادل تلقائي (يوازن النهاري/الليلي/نهاية الأسبوع)"), isOn: $fair)
                 if !fair {
-                Picker("قالب الدوران", selection: $template) { ForEach(templates.indices, id: \.self) { Text(templates[$0].0).tag($0) } }
+                Picker(L("قالب الدوران"), selection: $template) { ForEach(templates.indices, id: \.self) { Text(templates[$0].0).tag($0) } }
                     .pickerStyle(.inline)
-                Toggle("توزيع متدرّج بين الموظفين لتغطية أفضل", isOn: $staggered)
+                Toggle(L("توزيع متدرّج بين الموظفين لتغطية أفضل"), isOn: $staggered)
                 }
-                Section { Text("سيتم استبدال خانات \(store.monthTitle) لكل موظفي \(store.data.selectedDepartment). يمكنك التعديل يدويًا بعدها.").font(.footnote) }
+                Section { Text(L("سيتم استبدال خانات %1$@ لكل موظفي %2$@. يمكنك التعديل يدويًا بعدها.", "\(store.monthTitle)", "\(store.data.selectedDepartment)")).font(.footnote) }
             }
-            .navigationTitle("تعبئة تلقائية").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(L("تعبئة تلقائية")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("تطبيق") { if fair { store.fairFill(minDay: Session.shared.myDepartment?.min_day ?? UserDefaults.standard.integer(forKey: "minDay").clamped, minNight: Session.shared.myDepartment?.min_night ?? max(1, UserDefaults.standard.integer(forKey: "minNight"))) } else { store.autoFill(pattern: templates[template].1, staggered: staggered) }; UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L("تطبيق")) { if fair { store.fairFill(minDay: Session.shared.myDepartment?.min_day ?? UserDefaults.standard.integer(forKey: "minDay").clamped, minNight: Session.shared.myDepartment?.min_night ?? max(1, UserDefaults.standard.integer(forKey: "minNight"))) } else { store.autoFill(pattern: templates[template].1, staggered: staggered) }; UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() } }
             }
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }
 
@@ -215,22 +215,22 @@ struct MyShiftsView: View {
                 let shifts = store.upcomingShifts(for: me.id)
                 TodayShiftCard()
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack { Text("مناوباتي القادمة").font(.title3.bold()); Spacer(); Text("\(shifts.count)").foregroundStyle(.secondary) }
-                    if shifts.isEmpty { ContentUnavailableView("لا توجد مناوبات", systemImage: "calendar.badge.exclamationmark", description: Text("ستظهر هنا بعد رفع الجدول.")) }
+                    HStack { Text(L("مناوباتي القادمة")).font(.title3.bold()); Spacer(); Text("\(shifts.count)").foregroundStyle(.secondary) }
+                    if shifts.isEmpty { ContentUnavailableView(L("لا توجد مناوبات"), systemImage: "calendar.badge.exclamationmark", description: Text(L("ستظهر هنا بعد رفع الجدول."))) }
                     ForEach(shifts.prefix(40), id: \.0) { s in
                         HStack {
                             Text(s.1.label).font(.headline).frame(width: 36, height: 36).background(s.1.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8)).foregroundStyle(s.1.color)
-                            VStack(alignment: .leading) { Text(Fmt.date(s.0, "EEEE d MMMM")).font(.subheadline.bold()); Text("\(Fmt.date(s.0, "h:mm a")) · \(store.data.settings.shiftLength) ساعة").font(.caption).foregroundStyle(.secondary) }
+                            VStack(alignment: .leading) { Text(Fmt.date(s.0, "EEEE d MMMM")).font(.subheadline.bold()); Text(L("%1$@ · %2$@ ساعة", "\(Fmt.date(s.0, "h:mm a"))", "\(store.data.settings.shiftLength)")).font(.caption).foregroundStyle(.secondary) }
                             Spacer()
                         }
                         Divider()
                     }
-                    Button { Task { exportMsg = await CalendarExport.add(shifts: shifts, hours: store.data.settings.shiftLength) } } label: { Label("إضافة للتقويم", systemImage: "calendar.badge.plus") }
+                    Button { Task { exportMsg = await CalendarExport.add(shifts: shifts, hours: store.data.settings.shiftLength) } } label: { Label(L("إضافة للتقويم"), systemImage: "calendar.badge.plus") }
                         .buttonStyle(PrimaryButtonStyle()).disabled(shifts.isEmpty)
                     if let exportMsg { Text(exportMsg).font(.footnote).foregroundStyle(.secondary) }
                 }.card()
             } else {
-                ContentUnavailableView("لم يتم ربط حسابك بموظف", systemImage: "person.crop.circle.badge.questionmark", description: Text("سجّل الدخول برقمك الوظيفي وكلمة المرور، أو فعّل حسابك بكود الدعوة."))
+                ContentUnavailableView(L("لم يتم ربط حسابك بموظف"), systemImage: "person.crop.circle.badge.questionmark", description: Text(L("سجّل الدخول برقمك الوظيفي وكلمة المرور، أو فعّل حسابك بكود الدعوة.")))
                     .card()
             }
         }
@@ -241,19 +241,19 @@ enum CalendarExport {
     static func add(shifts: [(Date, ShiftCode)], hours: Int) async -> String {
         let ev = EKEventStore()
         do {
-            guard try await ev.requestWriteOnlyAccessToEvents() else { return "لم يُسمح بالوصول للتقويم" }
+            guard try await ev.requestWriteOnlyAccessToEvents() else { return L("لم يُسمح بالوصول للتقويم") }
             var n = 0
             for (start, code) in shifts where start > Date() {
                 let e = EKEvent(eventStore: ev)
-                e.title = "مناوبة \(code.title) — مِناوب"
+                e.title = L("مناوبة %@ — مِناوب", "\(code.title)")
                 e.startDate = start; e.endDate = start.addingTimeInterval(Double(hours) * 3600)
                 e.calendar = ev.defaultCalendarForNewEvents
                 e.addAlarm(EKAlarm(relativeOffset: -3600))
                 try ev.save(e, span: .thisEvent, commit: false); n += 1
             }
             try ev.commit()
-            return "✅ أُضيفت \(n) مناوبة إلى التقويم"
-        } catch { return "تعذّر الإضافة: \(error.localizedDescription)" }
+            return L("✅ أُضيفت %@ مناوبة إلى التقويم", "\(n)")
+        } catch { return L("تعذّر الإضافة: %@", "\(error.localizedDescription)") }
     }
 }
 
@@ -268,20 +268,20 @@ struct RequestsView: View {
     var body: some View {
         VStack(spacing: 16) {
             if !session.online {
-                ContentUnavailableView("يتطلب حسابًا سحابيًا", systemImage: "icloud.slash", description: Text("طلبات الإجازة والتبديل تعمل بعد تسجيل الدخول."))
+                ContentUnavailableView(L("يتطلب حسابًا سحابيًا"), systemImage: "icloud.slash", description: Text(L("طلبات الإجازة والتبديل تعمل بعد تسجيل الدخول.")))
                     .card()
             } else {
                 HStack(spacing: 12) {
-                    Button { showLeave = true } label: { Label("طلب إجازة", systemImage: "airplane") }.buttonStyle(PrimaryButtonStyle())
-                    Button { showSwap = true } label: { Label("طلب تبديل", systemImage: "arrow.left.arrow.right") }.buttonStyle(OutlineButtonStyle())
+                    Button { showLeave = true } label: { Label(L("طلب إجازة"), systemImage: "airplane") }.buttonStyle(PrimaryButtonStyle())
+                    Button { showSwap = true } label: { Label(L("طلب تبديل"), systemImage: "arrow.left.arrow.right") }.buttonStyle(OutlineButtonStyle())
                 }
                 if let error { Text(error).foregroundStyle(.red).font(.footnote) }
-                section("طلبات الإجازة", session.remote?.leaves ?? []) { l in
+                section(L("طلبات الإجازة"), session.remote?.leaves ?? []) { l in
                     RequestRow(title: session.user(l.user_id)?.name ?? "—", detail: "\(l.start_date) ← \(l.end_date)\(l.reason.map { " · " + $0 } ?? "")", status: l.status,
                                canDecide: session.isManager && l.status == "pending") { ok in await act { try await session.decideLeave(l.id, approve: ok) } }
                 }
-                section("طلبات التبديل", session.remote?.swaps ?? []) { s in
-                    RequestRow(title: "\(session.user(s.from_user)?.name ?? "—") ⇄ \(session.user(s.to_user)?.name ?? "—")", detail: "يوم \(s.date)\(s.note.map { " · " + $0 } ?? "")", status: s.status,
+                section(L("طلبات التبديل"), session.remote?.swaps ?? []) { s in
+                    RequestRow(title: "\(session.user(s.from_user)?.name ?? "—") ⇄ \(session.user(s.to_user)?.name ?? "—")", detail: L("يوم %1$@%2$@", "\(s.date)", "\(s.note.map { " · " + $0 } ?? "")"), status: s.status,
                                canDecide: session.isManager && s.status == "pending") { ok in await act { try await session.decideSwap(s.id, approve: ok) } }
                 }
             }
@@ -298,7 +298,7 @@ struct RequestsView: View {
     private func section<T: Identifiable, R: View>(_ title: String, _ items: [T], @ViewBuilder row: @escaping (T) -> R) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).font(.title3.bold())
-            if items.isEmpty { Text("لا توجد طلبات").font(.footnote).foregroundStyle(.secondary) }
+            if items.isEmpty { Text(L("لا توجد طلبات")).font(.footnote).foregroundStyle(.secondary) }
             ForEach(items) { row($0); Divider() }
         }.card()
     }
@@ -312,15 +312,15 @@ struct RequestRow: View {
             HStack {
                 Text(title).font(.subheadline.bold())
                 Spacer()
-                Text(status == "approved" ? "موافق عليه" : status == "rejected" ? "مرفوض" : "قيد الانتظار")
+                Text(status == "approved" ? L("موافق عليه") : status == "rejected" ? L("مرفوض") : L("قيد الانتظار"))
                     .font(.caption.bold()).padding(.horizontal, 8).padding(.vertical, 3)
                     .background((status == "approved" ? Color.green : status == "rejected" ? .red : .orange).opacity(0.15), in: Capsule())
             }
             Text(detail).font(.caption).foregroundStyle(.secondary)
             if canDecide {
                 HStack {
-                    Button("موافقة") { Task { await decide(true) } }.buttonStyle(.borderedProminent)
-                    Button("رفض", role: .destructive) { Task { await decide(false) } }.buttonStyle(.bordered)
+                    Button(L("موافقة")) { Task { await decide(true) } }.buttonStyle(.borderedProminent)
+                    Button(L("رفض"), role: .destructive) { Task { await decide(false) } }.buttonStyle(.bordered)
                 }
             }
         }
@@ -336,19 +336,19 @@ struct LeaveForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                DatePicker("من", selection: $from, displayedComponents: .date)
-                DatePicker("إلى", selection: $to, in: from..., displayedComponents: .date)
-                TextField("السبب", text: $reason, axis: .vertical)
+                DatePicker(L("من"), selection: $from, displayedComponents: .date)
+                DatePicker(L("إلى"), selection: $to, in: from..., displayedComponents: .date)
+                TextField(L("السبب"), text: $reason, axis: .vertical)
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle("طلب إجازة").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(L("طلب إجازة")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("إرسال") { Task { do { try await Session.shared.requestLeave(from: from, to: to, reason: reason); dismiss() } catch { self.error = (error as? LocalizedError)?.errorDescription } } } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L("إرسال")) { Task { do { try await Session.shared.requestLeave(from: from, to: to, reason: reason); dismiss() } catch { self.error = (error as? LocalizedError)?.errorDescription } } } }
             }
             .keyboardDone()
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }
 
@@ -363,25 +363,25 @@ struct SwapForm: View {
         let others = (Session.shared.remote?.users ?? []).filter { $0.id != me?.id && $0.department_id == me?.department_id }
         NavigationStack {
             Form {
-                Picker("الزميل", selection: $colleague) {
-                    Text("اختر").tag("")
+                Picker(L("الزميل"), selection: $colleague) {
+                    Text(L("اختر")).tag("")
                     ForEach(others) { Text($0.name).tag($0.id) }
                 }
-                DatePicker("يوم المناوبة", selection: $date, displayedComponents: .date)
-                AppTextField(placeholder: "ملاحظة", text: $note).frame(minHeight: 32)
+                DatePicker(L("يوم المناوبة"), selection: $date, displayedComponents: .date)
+                AppTextField(placeholder: L("ملاحظة"), text: $note).frame(minHeight: 32)
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle("طلب تبديل").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(L("طلب تبديل")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إلغاء")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("إرسال") { Task { do { try await Session.shared.requestSwap(with: colleague, date: date, note: note); dismiss() } catch { self.error = (error as? LocalizedError)?.errorDescription } } }
+                    Button(L("إرسال")) { Task { do { try await Session.shared.requestSwap(with: colleague, date: date, note: note); dismiss() } catch { self.error = (error as? LocalizedError)?.errorDescription } } }
                         .disabled(colleague.isEmpty)
                 }
             }
             .keyboardDone()
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }
 
@@ -398,10 +398,10 @@ struct AnnouncementsView: View {
         VStack(spacing: 16) {
             if session.online && session.isManager {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("إعلان جديد").font(.title3.bold())
-                    AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32).fieldBox()
-                    TextField("النص", text: $text, axis: .vertical).lineLimit(3...6).fieldBox()
-                    Toggle("لكل المستشفى", isOn: $allHospital)
+                    Text(L("إعلان جديد")).font(.title3.bold())
+                    AppTextField(placeholder: L("العنوان"), text: $title).frame(minHeight: 32).fieldBox()
+                    TextField(L("النص"), text: $text, axis: .vertical).lineLimit(3...6).fieldBox()
+                    Toggle(L("لكل المستشفى"), isOn: $allHospital)
                     if let error { Text(error).foregroundStyle(.red).font(.footnote) }
                     Button {
                         Task {
@@ -409,14 +409,14 @@ struct AnnouncementsView: View {
                             do { try await session.announce(title: title, body: text, dept: allHospital ? nil : store.data.selectedDepartment); title = ""; text = ""; KeyboardHelper.dismiss() }
                             catch { self.error = (error as? LocalizedError)?.errorDescription }
                         }
-                    } label: { Label("نشر وإرسال تنبيه", systemImage: "megaphone") }
+                    } label: { Label(L("نشر وإرسال تنبيه"), systemImage: "megaphone") }
                         .buttonStyle(PrimaryButtonStyle()).disabled(title.isEmpty || busy)
                 }.card()
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("لوحة الإعلانات").font(.title3.bold())
+                Text(L("لوحة الإعلانات")).font(.title3.bold())
                 let items = session.remote?.announcements ?? []
-                if items.isEmpty { ContentUnavailableView("لا توجد إعلانات", systemImage: "megaphone", description: Text(session.online ? "ستظهر إعلانات الإدارة هنا." : "سجّل الدخول لمشاهدة إعلانات المستشفى.")) }
+                if items.isEmpty { ContentUnavailableView(L("لا توجد إعلانات"), systemImage: "megaphone", description: Text(session.online ? L("ستظهر إعلانات الإدارة هنا.") : L("سجّل الدخول لمشاهدة إعلانات المستشفى."))) }
                 ForEach(items) { a in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(a.title).font(.headline)
@@ -444,39 +444,39 @@ struct ReportsView: View {
         let cov = (1...store.daysInMonth).map { (d: $0, c: store.coverage(day: $0)) }
         VStack(spacing: 16) {
             VStack(alignment: .leading) {
-                Text("ساعات \(store.monthTitle)").font(.title3.bold())
-                if rows.isEmpty { ContentUnavailableView("لا يوجد موظفون", systemImage: "chart.bar") }
+                Text(L("ساعات %@", "\(store.monthTitle)")).font(.title3.bold())
+                if rows.isEmpty { ContentUnavailableView(L("لا يوجد موظفون"), systemImage: "chart.bar") }
                 else {
                     Chart(rows) { r in
-                        BarMark(x: .value("الساعات", r.rostered), y: .value("الموظف", r.name)).foregroundStyle(Theme.primary).annotation(position: .trailing) { Text("\(r.rostered)").font(.caption2) }
+                        BarMark(x: .value(L("الساعات"), r.rostered), y: .value(L("الموظف"), r.name)).foregroundStyle(Theme.primary).annotation(position: .trailing) { Text("\(r.rostered)").font(.caption2) }
                     }
                     .frame(height: CGFloat(max(160, rows.count * 34)))
-                    .accessibilityLabel("مخطط ساعات الموظفين")
+                    .accessibilityLabel(L("مخطط ساعات الموظفين"))
                 }
             }.card()
             VStack(alignment: .leading) {
-                Text("التغطية اليومية").font(.title3.bold())
+                Text(L("التغطية اليومية")).font(.title3.bold())
                 Chart {
                     ForEach(cov, id: \.d) { x in
-                        LineMark(x: .value("اليوم", x.d), y: .value("العدد", x.c.day)).foregroundStyle(by: .value("نوع", "نهاري"))
-                        LineMark(x: .value("اليوم", x.d), y: .value("العدد", x.c.night)).foregroundStyle(by: .value("نوع", "ليلي"))
+                        LineMark(x: .value(L("اليوم"), x.d), y: .value(L("العدد"), x.c.day)).foregroundStyle(by: .value(L("نوع"), L("نهاري")))
+                        LineMark(x: .value(L("اليوم"), x.d), y: .value(L("العدد"), x.c.night)).foregroundStyle(by: .value(L("نوع"), L("ليلي")))
                     }
                 }
-                .chartForegroundStyleScale(["نهاري": .blue, "ليلي": .purple])
+                .chartForegroundStyleScale([L("نهاري"): .blue, L("ليلي"): .purple])
                 .frame(height: 180)
             }.card()
             HStack(spacing: 12) {
                 Button { fileURL = ReportExport.pdf(store: store, rows: rows) } label: { Label("PDF", systemImage: "doc.richtext") }.buttonStyle(OutlineButtonStyle())
                 Button { fileURL = ReportExport.csv(store: store, rows: rows) } label: { Label("CSV / Excel", systemImage: "tablecells") }.buttonStyle(OutlineButtonStyle())
             }
-            if let fileURL { ShareLink(item: fileURL) { Label("مشاركة \(fileURL.lastPathComponent)", systemImage: "square.and.arrow.up") }.buttonStyle(PrimaryButtonStyle()) }
+            if let fileURL { ShareLink(item: fileURL) { Label(L("مشاركة %@", "\(fileURL.lastPathComponent)"), systemImage: "square.and.arrow.up") }.buttonStyle(PrimaryButtonStyle()) }
         }
     }
 }
 
 enum ReportExport {
     static func csv(store: AppStore, rows: [HoursRow]) -> URL {
-        var s = "\u{FEFF}الموظف,الرقم,ساعات الجدول,الساعات المسجلة\n"
+        var s = L("\u{FEFF}الموظف,الرقم,ساعات الجدول,الساعات المسجلة\n")
         for r in rows { s += "\"\(r.name)\",\(r.number),\(r.rostered),\(Fmt.hours(r.logged))\n" }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("munawib-hours-\(store.year)-\(store.month).csv")
         try? s.data(using: .utf8)?.write(to: url)
@@ -490,17 +490,17 @@ enum ReportExport {
         let body: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 12), .paragraphStyle: para]
         try? UIGraphicsPDFRenderer(bounds: page).writePDF(to: url) { ctx in
             ctx.beginPage()
-            ("تقرير ساعات \(store.monthTitle) — \(store.data.selectedDepartment)" as NSString).draw(in: CGRect(x: 40, y: 40, width: 515, height: 30), withAttributes: title)
+            (L("تقرير ساعات %1$@ — %2$@", "\(store.monthTitle)", "\(store.data.selectedDepartment)") as NSString).draw(in: CGRect(x: 40, y: 40, width: 515, height: 30), withAttributes: title)
             (store.data.settings.hospital as NSString).draw(in: CGRect(x: 40, y: 70, width: 515, height: 20), withAttributes: body)
             var y: CGFloat = 110
-            ("الموظف        الرقم        ساعات الجدول        المسجلة" as NSString).draw(in: CGRect(x: 40, y: y, width: 515, height: 18), withAttributes: title.merging([.font: UIFont.boldSystemFont(ofSize: 12)]) { $1 })
+            (L("الموظف        الرقم        ساعات الجدول        المسجلة") as NSString).draw(in: CGRect(x: 40, y: y, width: 515, height: 18), withAttributes: title.merging([.font: UIFont.boldSystemFont(ofSize: 12)]) { $1 })
             y += 24
             for r in rows {
                 if y > 800 { ctx.beginPage(); y = 40 }
                 ("\(r.name)        \(r.number)        \(r.rostered)        \(Fmt.hours(r.logged))" as NSString).draw(in: CGRect(x: 40, y: y, width: 515, height: 18), withAttributes: body)
                 y += 20
             }
-            ("الإجمالي: \(rows.reduce(0) { $0 + $1.rostered }) ساعة" as NSString).draw(in: CGRect(x: 40, y: y + 10, width: 515, height: 18), withAttributes: title.merging([.font: UIFont.boldSystemFont(ofSize: 13)]) { $1 })
+            (L("الإجمالي: %@ ساعة", "\(rows.reduce(0) { $0 + $1.rostered })") as NSString).draw(in: CGRect(x: 40, y: y + 10, width: 515, height: 18), withAttributes: title.merging([.font: UIFont.boldSystemFont(ofSize: 13)]) { $1 })
         }
         return url
     }

@@ -33,7 +33,7 @@ final class AppStore {
     }
 
     var monthTitle: String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "ar"); f.dateFormat = "MMMM yyyy"
+        let f = DateFormatter(); f.locale = LanguageManager.current.locale; f.dateFormat = "MMMM yyyy"
         return f.string(from: currentMonth)
     }
 
@@ -77,13 +77,13 @@ final class AppStore {
         setCode(next, emp: emp, day: day)
     }
 
-    func markReviewed() { data.rosters[rosterIndex].status = .reviewed; log("حفظ المراجعة", "جدول \(monthTitle)") }
+    func markReviewed() { data.rosters[rosterIndex].status = .reviewed; log(L("حفظ المراجعة"), L("جدول %@", "\(monthTitle)")) }
 
     func approve() async {
         let i = rosterIndex
         data.rosters[i].status = .approved
-        log("اعتماد وإرسال للفريق", "جدول \(monthTitle) — \(data.selectedDepartment)")
-        await NotificationManager.shared.notifyNow(title: "تم اعتماد الجدول", body: "جدول \(monthTitle) لقسم \(data.selectedDepartment) أصبح معتمدًا.")
+        log(L("اعتماد وإرسال للفريق"), L("جدول %1$@ — %2$@", "\(monthTitle)", "\(data.selectedDepartment)"))
+        await NotificationManager.shared.notifyNow(title: L("تم اعتماد الجدول"), body: L("جدول %1$@ لقسم %2$@ أصبح معتمدًا.", "\(monthTitle)", "\(data.selectedDepartment)"))
         await rescheduleNotifications()
     }
 
@@ -96,7 +96,7 @@ final class AppStore {
         }
         data.rosters[i].status = .draft
         data.rosters[i].source = source
-        log("رفع جدول", source)
+        log(L("رفع جدول"), source)
     }
 
     // MARK: Notifications

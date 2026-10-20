@@ -5,6 +5,7 @@ struct MunawibApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = AppStore()
     @State private var session = Session.shared
+    @State private var language = LanguageManager.shared
     init() {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-auth"), i + 1 < args.count {
@@ -37,8 +38,9 @@ struct MunawibApp: App {
                         session.pendingInvite = c
                     }
                 }
-                .environment(\.layoutDirection, .rightToLeft)
-                .environment(\.locale, Locale(identifier: "ar"))
+                .environment(\.layoutDirection, language.direction)
+                .environment(\.locale, language.locale)
+                .id(language.lang)
                 .tint(Theme.primary)
         }
     }
@@ -49,18 +51,18 @@ enum Screen: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .dashboard: return "لوحة رئيسة التمريض"
-        case .home: return "الرئيسية"
-        case .roster: return "جداول المناوبات"
-        case .myShifts: return "مناوباتي"
-        case .requests: return "الإجازات والتبديل"
-        case .announcements: return "الإعلانات"
-        case .reports: return "التقارير"
-        case .hours: return "الحضور والساعات"
-        case .employees: return "الموظفون"
-        case .events: return "الدورات والفعاليات"
-        case .alerts: return "الإرسال والتنبيهات"
-        case .settings: return "الإعدادات"
+        case .dashboard: return L("لوحة رئيسة التمريض")
+        case .home: return L("الرئيسية")
+        case .roster: return L("جداول المناوبات")
+        case .myShifts: return L("مناوباتي")
+        case .requests: return L("الإجازات والتبديل")
+        case .announcements: return L("الإعلانات")
+        case .reports: return L("التقارير")
+        case .hours: return L("الحضور والساعات")
+        case .employees: return L("الموظفون")
+        case .events: return L("الدورات والفعاليات")
+        case .alerts: return L("الإرسال والتنبيهات")
+        case .settings: return L("الإعدادات")
         }
     }
     var symbol: String {

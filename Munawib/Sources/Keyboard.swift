@@ -25,7 +25,7 @@ struct KeyboardDoneModifier: ViewModifier {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("تم") { KeyboardHelper.dismiss() }.bold()
+                    Button(L("تم")) { KeyboardHelper.dismiss() }.bold()
                 }
             }
     }
@@ -87,7 +87,7 @@ struct AppTextField: UIViewRepresentable {
         f.setContentHuggingPriority(.defaultLow, for: .horizontal)
         f.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let bar = UIToolbar(); bar.sizeToFit()
-        bar.items = [UIBarButtonItem(systemItem: .flexibleSpace), UIBarButtonItem(title: "تم", style: .done, target: f, action: #selector(UIResponder.resignFirstResponder))]
+        bar.items = [UIBarButtonItem(systemItem: .flexibleSpace), UIBarButtonItem(title: L("تم"), style: .done, target: f, action: #selector(UIResponder.resignFirstResponder))]
         f.inputAccessoryView = bar
         apply(f)
         f.text = text

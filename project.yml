@@ -1,6 +1,7 @@
 name: Munawib
 options:
   bundleIdPrefix: com.mohlab
+  developmentLanguage: ar
   deploymentTarget:
     iOS: "17.0"
 settings:

@@ -6,7 +6,7 @@ struct RoleBadge: View {
         if !title.isEmpty {
             Text(title).font(.caption2.bold()).padding(.horizontal, 8).padding(.vertical, 4)
                 .foregroundStyle(.white).background(Theme.primary, in: Capsule())
-                .accessibilityLabel("الدور: \(title)")
+                .accessibilityLabel(L("الدور: %@", "\(title)"))
         }
     }
 }
@@ -29,31 +29,31 @@ struct HeadNurseDashboard: View {
         VStack(spacing: 16) {
             if let info = session.signupInfo {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("احفظ هذه الرموز", systemImage: "key.fill").font(.headline)
+                    Label(L("احفظ هذه الرموز"), systemImage: "key.fill").font(.headline)
                     Text(info).font(.body.monospaced()).textSelection(.enabled)
-                    ShareLink(item: info) { Label("مشاركة", systemImage: "square.and.arrow.up") }
+                    ShareLink(item: info) { Label(L("مشاركة"), systemImage: "square.and.arrow.up") }
                 }.card()
             }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-                StatCard(symbol: "tray.full", tint: .orange, caption: "بانتظار الموافقة", value: "\(pending)", footnote: "إجازات وتبديلات")
-                StatCard(symbol: "sun.max", tint: .blue, caption: "تغطية اليوم", value: "D\(today.day) · N\(today.night)", footnote: "الحد الأدنى D\(minD) · N\(minN)")
-                StatCard(symbol: "airplane", tint: .pink, caption: "في إجازة اليوم", value: "\(onLeave.count)", footnote: onLeave.prefix(2).compactMap { session.user($0.user_id)?.name }.joined(separator: "، "))
-                StatCard(symbol: "exclamationmark.triangle", tint: .red, caption: "فجوات قادمة (14 يوم)", value: "\(gaps.count)", footnote: gaps.prefix(3).map { "\($0)" }.joined(separator: "، "))
+                StatCard(symbol: "tray.full", tint: .orange, caption: L("بانتظار الموافقة"), value: "\(pending)", footnote: L("إجازات وتبديلات"))
+                StatCard(symbol: "sun.max", tint: .blue, caption: L("تغطية اليوم"), value: "D\(today.day) · N\(today.night)", footnote: L("الحد الأدنى D%1$@ · N%2$@", "\(minD)", "\(minN)"))
+                StatCard(symbol: "airplane", tint: .pink, caption: L("في إجازة اليوم"), value: "\(onLeave.count)", footnote: onLeave.prefix(2).compactMap { session.user($0.user_id)?.name }.joined(separator: L("، ")))
+                StatCard(symbol: "exclamationmark.triangle", tint: .red, caption: L("فجوات قادمة (14 يوم)"), value: "\(gaps.count)", footnote: gaps.prefix(3).map { "\($0)" }.joined(separator: L("، ")))
             }
             if let code = session.remote?.hospital?.code {
-                HStack { Label("رمز المستشفى لدخول الموظفين", systemImage: "building.2"); Spacer(); Text(code).font(.headline.monospaced()).textSelection(.enabled) }.card()
+                HStack { Label(L("رمز المستشفى لدخول الموظفين"), systemImage: "building.2"); Spacer(); Text(code).font(.headline.monospaced()).textSelection(.enabled) }.card()
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("إجراءات سريعة").font(.title3.bold())
+                Text(L("إجراءات سريعة")).font(.title3.bold())
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    quick("الموافقات", "checkmark.seal") { screen = .requests }
-                    quick("الجدول", "calendar") { screen = .roster }
-                    quick("تعبئة عادلة", "wand.and.stars") { screen = .roster; sheet = .autoFill }
-                    quick("إضافة موظف", "person.badge.plus") { sheet = .addEmployee }
-                    quick("إرسال تنبيه", "paperplane") { showPush = true }
-                    quick("إعلان", "megaphone") { screen = .announcements }
-                    quick("التقارير", "chart.bar") { screen = .reports }
-                    quick("سجل التدقيق", "list.bullet.clipboard") { showAudit = true }
+                    quick(L("الموافقات"), "checkmark.seal") { screen = .requests }
+                    quick(L("الجدول"), "calendar") { screen = .roster }
+                    quick(L("تعبئة عادلة"), "wand.and.stars") { screen = .roster; sheet = .autoFill }
+                    quick(L("إضافة موظف"), "person.badge.plus") { sheet = .addEmployee }
+                    quick(L("إرسال تنبيه"), "paperplane") { showPush = true }
+                    quick(L("إعلان"), "megaphone") { screen = .announcements }
+                    quick(L("التقارير"), "chart.bar") { screen = .reports }
+                    quick(L("سجل التدقيق"), "list.bullet.clipboard") { showAudit = true }
                 }
             }.card()
         }
@@ -96,11 +96,11 @@ struct CustomPushSheet: View {
         let staff = (Session.shared.remote?.users ?? []).filter { me?.role == "admin" || $0.department_id == me?.department_id }
         NavigationStack {
             Form {
-                AppTextField(placeholder: "العنوان", text: $title).frame(minHeight: 32)
-                TextField("النص", text: $text, axis: .vertical)
-                Toggle("كل القسم", isOn: $everyone)
+                AppTextField(placeholder: L("العنوان"), text: $title).frame(minHeight: 32)
+                TextField(L("النص"), text: $text, axis: .vertical)
+                Toggle(L("كل القسم"), isOn: $everyone)
                 if !everyone {
-                    Section("المستلمون") {
+                    Section(L("المستلمون")) {
                         ForEach(staff) { u in
                             Button { if selected.contains(u.id) { selected.remove(u.id) } else { selected.insert(u.id) } } label: {
                                 HStack { Text(u.name).foregroundStyle(.primary); Spacer(); if selected.contains(u.id) { Image(systemName: "checkmark").foregroundStyle(Theme.primary) } }
@@ -110,11 +110,11 @@ struct CustomPushSheet: View {
                 }
                 if let result { Text(result) }
             }
-            .navigationTitle("تنبيه مخصص").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(L("تنبيه مخصص")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إغلاق") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("إغلاق")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("إرسال") {
+                    Button(L("إرسال")) {
                         Task {
                             busy = true; defer { busy = false }
                             do { result = try await Session.shared.customPush(title: title, body: text, userIDs: everyone ? [] : Array(selected)); UINotificationFeedbackGenerator().notificationOccurred(.success) }
@@ -125,7 +125,7 @@ struct CustomPushSheet: View {
             }
             .keyboardDone()
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
 }
 
@@ -135,7 +135,7 @@ struct AuditLogView: View {
         NavigationStack {
             List {
                 let items = Session.shared.remote?.audit_log ?? []
-                if items.isEmpty { ContentUnavailableView("لا توجد سجلات", systemImage: "list.bullet.clipboard") }
+                if items.isEmpty { ContentUnavailableView(L("لا توجد سجلات"), systemImage: "list.bullet.clipboard") }
                 ForEach(items) { a in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(AuditLogView.title(a.action)).font(.subheadline.bold())
@@ -145,17 +145,17 @@ struct AuditLogView: View {
                 }
             }
             .refreshable { try? await Session.shared.refresh() }
-            .navigationTitle("سجل التدقيق").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("إغلاق") { dismiss() } } }
+            .navigationTitle(L("سجل التدقيق")).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("إغلاق")) { dismiss() } } }
         }
-        .environment(\.layoutDirection, .rightToLeft)
+        .environment(\.layoutDirection, LanguageManager.shared.direction)
     }
     static func title(_ a: String) -> String {
-        [ "roster.save": "حفظ الجدول", "roster.approved": "اعتماد الجدول", "roster.review": "مراجعة الجدول", "roster.draft": "إرجاع الجدول مسودة",
-          "employee.create": "إضافة موظف", "employee.update": "تعديل موظف", "employee.delete": "حذف موظف", "employee.role": "تغيير صلاحية",
-          "leave.request": "طلب إجازة", "leave.approved": "موافقة إجازة", "leave.rejected": "رفض إجازة",
-          "swap.request": "طلب تبديل", "swap.approved": "موافقة تبديل", "swap.rejected": "رفض تبديل",
-          "announcement": "إعلان", "push.custom": "تنبيه مخصص", "department.update": "إعدادات القسم", "attendance.add": "تسجيل ساعات" ][a] ?? a
+        [ "roster.save": L("حفظ الجدول"), "roster.approved": L("اعتماد الجدول"), "roster.review": L("مراجعة الجدول"), "roster.draft": L("إرجاع الجدول مسودة"),
+          "employee.create": L("إضافة موظف"), "employee.update": L("تعديل موظف"), "employee.delete": L("حذف موظف"), "employee.role": L("تغيير صلاحية"),
+          "leave.request": L("طلب إجازة"), "leave.approved": L("موافقة إجازة"), "leave.rejected": L("رفض إجازة"),
+          "swap.request": L("طلب تبديل"), "swap.approved": L("موافقة تبديل"), "swap.rejected": L("رفض تبديل"),
+          "announcement": L("إعلان"), "push.custom": L("تنبيه مخصص"), "department.update": L("إعدادات القسم"), "attendance.add": L("تسجيل ساعات") ][a] ?? a
     }
 }
 
@@ -186,6 +186,6 @@ extension AppStore {
                 last[e] = c
             }
         }
-        log("تعبئة عادلة", "D≥\(minDay) N≥\(minNight)")
+        log(L("تعبئة عادلة"), "D≥\(minDay) N≥\(minNight)")
     }
 }

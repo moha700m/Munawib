@@ -6,8 +6,8 @@ struct InviteCodeRow: View {
     let number: String?
     @State private var copied = false
     var shareText: String {
-        var t = "مرحبًا \(name)،\nلتفعيل حسابك في مِناوب: افتح التطبيق ← «تفعيل حساب بدعوة» ← أدخل الكود: \(code)"
-        if let c = Session.shared.remote?.hospital?.code { t += "\nبعد التفعيل ادخل برقمك الوظيفي \(number ?? "") ورمز المستشفى \(c)" }
+        var t = L("مرحبًا %1$@،\nلتفعيل حسابك في مِناوب: افتح التطبيق ← «تفعيل حساب بدعوة» ← أدخل الكود: %2$@", "\(name)", "\(code)")
+        if let c = Session.shared.remote?.hospital?.code { t += L("\nبعد التفعيل ادخل برقمك الوظيفي %1$@ ورمز المستشفى %2$@", "\(number ?? "")", "\(c)") }
         return t + "\nmunawib://join?code=\(code)"
     }
     var body: some View {
@@ -19,11 +19,11 @@ struct InviteCodeRow: View {
                     UIPasteboard.general.string = code; Haptics.success()
                     withAnimation(.snappy) { copied = true }
                     Task { try? await Task.sleep(for: .seconds(1.5)); withAnimation { copied = false } }
-                } label: { Label(copied ? "تم النسخ" : "نسخ", systemImage: copied ? "checkmark" : "doc.on.doc") }
+                } label: { Label(copied ? L("تم النسخ") : L("نسخ"), systemImage: copied ? "checkmark" : "doc.on.doc") }
                 .buttonStyle(.bordered).tint(copied ? .green : Theme.primary)
             }
-            ShareLink(item: shareText) { Label("مشاركة الدعوة", systemImage: "square.and.arrow.up") }
-            Text("أعطِ هذا الكود للموظف ليختار كلمة مروره. لن يستطيع الدخول قبل التفعيل.").font(.caption).foregroundStyle(.secondary)
+            ShareLink(item: shareText) { Label(L("مشاركة الدعوة"), systemImage: "square.and.arrow.up") }
+            Text(L("أعطِ هذا الكود للموظف ليختار كلمة مروره. لن يستطيع الدخول قبل التفعيل.")).font(.caption).foregroundStyle(.secondary)
         }
     }
 }

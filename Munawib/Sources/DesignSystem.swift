@@ -45,7 +45,7 @@ struct DSField: View {
                 .frame(minHeight: 44)
             if !text.isEmpty {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
-                    .accessibilityLabel("مسح")
+                    .accessibilityLabel(L("مسح"))
             }
         }
         .dsFieldChrome()
@@ -65,7 +65,7 @@ struct DSSecureField: View {
             AppTextField(placeholder: placeholder, text: $text, secure: !show, contentType: contentType, returnKey: .go, identifier: id, onReturn: onReturn)
                 .frame(minHeight: 44)
             Button { show.toggle() } label: { Image(systemName: show ? "eye.slash" : "eye").foregroundStyle(.secondary).frame(width: 44, height: 44) }
-                .accessibilityLabel(show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور")
+                .accessibilityLabel(show ? L("إخفاء كلمة المرور") : L("إظهار كلمة المرور"))
         }
         .dsFieldChrome()
     }
@@ -84,8 +84,8 @@ struct StepHeader: View {
                         Capsule().fill(i <= step ? Theme.primary : Color.secondary.opacity(0.25)).frame(height: 4)
                     }
                 }
-                .accessibilityLabel("الخطوة \(step) من \(total)")
-                Text("الخطوة \(step) من \(total)").font(.caption.weight(.semibold)).foregroundStyle(Theme.primary)
+                .accessibilityLabel(L("الخطوة %1$@ من %2$@", "\(step)", "\(total)"))
+                Text(L("الخطوة %1$@ من %2$@", "\(step)", "\(total)")).font(.caption.weight(.semibold)).foregroundStyle(Theme.primary)
             }
             Text(title).font(.title2.bold())
             Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
@@ -118,7 +118,7 @@ struct TodayShiftCard: View {
             let next = current ?? shifts.first { $0.0 > now }
             VStack(alignment: .leading, spacing: DS.m) {
                 HStack {
-                    Label(current != nil ? "مناوبتك الآن" : "مناوبتك القادمة", systemImage: current != nil ? "dot.radiowaves.left.and.right" : "clock")
+                    Label(current != nil ? L("مناوبتك الآن") : L("مناوبتك القادمة"), systemImage: current != nil ? "dot.radiowaves.left.and.right" : "clock")
                         .font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
                     Spacer()
                     Text(me.name).font(.caption).foregroundStyle(.white.opacity(0.8))
@@ -133,10 +133,10 @@ struct TodayShiftCard: View {
                         Image(systemName: n.1 == .night ? "moon.stars.fill" : "sun.max.fill").font(.system(size: 38)).symbolRenderingMode(.hierarchical)
                     }
                     if current == nil {
-                        HStack(spacing: 6) { Text("يبدأ خلال"); Text(n.0, style: .relative).monospacedDigit().bold() }.font(.callout)
+                        HStack(spacing: 6) { Text(L("يبدأ خلال")); Text(n.0, style: .relative).monospacedDigit().bold() }.font(.callout)
                     }
                 } else {
-                    Text("لا توجد مناوبات قادمة").font(.title3.bold())
+                    Text(L("لا توجد مناوبات قادمة")).font(.title3.bold())
                 }
             }
             .foregroundStyle(.white)

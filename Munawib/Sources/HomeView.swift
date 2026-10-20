@@ -34,10 +34,10 @@ struct HomeView: View {
             TodayShiftCard()
             if Session.shared.syncing && Session.shared.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-                StatCard(symbol: "calendar", tint: Theme.primary, caption: "جدول \(store.monthTitle)", value: store.roster.status.title, footnote: store.roster.status == .approved ? "تم الإرسال للفريق" : "لن تُرسل التنبيهات قبل الاعتماد")
-                StatCard(symbol: "person.2", tint: .blue, caption: "الموظفون", value: "\(emps.count)", footnote: "في القسم الحالي")
-                StatCard(symbol: "paperclip", tint: .orange, caption: "الحسابات المربوطة", value: "\(emps.filter(\.linked).count)", footnote: "من أصل \(emps.count)")
-                StatCard(symbol: "alarm", tint: .purple, caption: "تنبيهات اليوم", value: "\(today.day + today.night)", footnote: "\(today.day) نهاري · \(today.night) ليلي")
+                StatCard(symbol: "calendar", tint: Theme.primary, caption: L("جدول %@", "\(store.monthTitle)"), value: store.roster.status.title, footnote: store.roster.status == .approved ? L("تم الإرسال للفريق") : L("لن تُرسل التنبيهات قبل الاعتماد"))
+                StatCard(symbol: "person.2", tint: .blue, caption: L("الموظفون"), value: "\(emps.count)", footnote: L("في القسم الحالي"))
+                StatCard(symbol: "paperclip", tint: .orange, caption: L("الحسابات المربوطة"), value: "\(emps.filter(\.linked).count)", footnote: L("من أصل %@", "\(emps.count)"))
+                StatCard(symbol: "alarm", tint: .purple, caption: L("تنبيهات اليوم"), value: "\(today.day + today.night)", footnote: L("%1$@ نهاري · %2$@ ليلي", "\(today.day)", "\(today.night)"))
             }
             statusCard
             dailyAlerts
@@ -54,30 +54,30 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text(store.roster.source ?? "لم يُرفع جدول بعد").font(.caption).foregroundStyle(.secondary)
-                    Text("حالة الجدول").font(.title2.bold())
+                    Text(store.roster.source ?? L("لم يُرفع جدول بعد")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("حالة الجدول")).font(.title2.bold())
                 }
                 Spacer()
                 StatusBadge(status: store.roster.status)
             }
             HStack {
-                step("رفع الملف", "checkmark", done: true)
+                step(L("رفع الملف"), "checkmark", done: true)
                 line
-                step("المراجعة", "sparkles", done: stage >= 1)
+                step(L("المراجعة"), "sparkles", done: stage >= 1)
                 line
-                step("إرسال للفريق", "paperplane", done: stage >= 2)
+                step(L("إرسال للفريق"), "paperplane", done: stage >= 2)
             }
-            Label("لن تُرسل الجداول أو التنبيهات قبل الاعتماد.", systemImage: "checkmark.shield")
+            Label(L("لن تُرسل الجداول أو التنبيهات قبل الاعتماد."), systemImage: "checkmark.shield")
                 .font(.footnote).foregroundStyle(Theme.primary)
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
             HStack {
                 Button {
                     Task { approving = true; await store.approve(); approving = false }
-                } label: { Label("اعتماد وإرسال للفريق", systemImage: "paperplane") }
+                } label: { Label(L("اعتماد وإرسال للفريق"), systemImage: "paperplane") }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(approving || store.roster.status == .approved)
-                Button("مراجعة الجدول") { screen = .roster }
+                Button(L("مراجعة الجدول")) { screen = .roster }
                     .font(.subheadline.bold()).frame(minHeight: 44)
             }
         }
@@ -97,16 +97,16 @@ struct HomeView: View {
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("مواعيد ثابتة").font(.caption).foregroundStyle(.secondary)
-                    Text("التنبيهات اليومية").font(.title2.bold())
+                    Text(L("مواعيد ثابتة")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("التنبيهات اليومية")).font(.title2.bold())
                 }
                 Spacer()
                 Image(systemName: "alarm").foregroundStyle(Theme.primary).font(.title2)
             }
-            shiftRow(.day, "الشفت النهاري", hour: s.dayStartHour)
+            shiftRow(.day, L("الشفت النهاري"), hour: s.dayStartHour)
             Divider()
-            shiftRow(.night, "الشفت الليلي", hour: s.nightStartHour)
-            Label("التذكير قبل بداية الشفت بـ \(s.reminderMinutesBefore) دقيقة بعد تفعيل التنبيهات واعتماد الجدول.", systemImage: "checkmark.shield")
+            shiftRow(.night, L("الشفت الليلي"), hour: s.nightStartHour)
+            Label(L("التذكير قبل بداية الشفت بـ %@ دقيقة بعد تفعيل التنبيهات واعتماد الجدول.", "\(s.reminderMinutesBefore)"), systemImage: "checkmark.shield")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .card()
@@ -118,29 +118,29 @@ struct HomeView: View {
                 .frame(width: 40, height: 40).background(c.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading) {
                 Text(title).font(.headline)
-                Text("\(c.title) \(hour12(hour)) · \(store.data.settings.shiftLength) ساعة").font(.caption).foregroundStyle(.secondary)
+                Text(L("%1$@ %2$@ · %3$@ ساعة", "\(c.title)", "\(hour12(hour))", "\(store.data.settings.shiftLength)")).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             Text("\(hour % 12 == 0 ? 12 : hour % 12):00").font(.title.bold()).monospacedDigit()
         }
     }
 
-    private func hour12(_ h: Int) -> String { "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? "صباحًا" : "مساءً")" }
+    private func hour12(_ h: Int) -> String { "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? L("صباحًا") : L("مساءً"))" }
 
     private var eventsCard: some View {
         let upcoming = store.data.events.filter { $0.date > Date().addingTimeInterval(-86400) }.sorted { $0.date < $1.date }.prefix(3)
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("تنبيه + تقويم").font(.caption).foregroundStyle(.secondary)
-                    Text("الدورات والفعاليات القادمة").font(.title3.bold())
+                    Text(L("تنبيه + تقويم")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("الدورات والفعاليات القادمة")).font(.title3.bold())
                 }
                 Spacer()
-                Button { sheet = .addEvent } label: { Label("إضافة", systemImage: "plus") }
+                Button { sheet = .addEvent } label: { Label(L("إضافة"), systemImage: "plus") }
                     .buttonStyle(.bordered)
             }
             if upcoming.isEmpty {
-                Text("لا توجد فعاليات قادمة").foregroundStyle(.secondary)
+                Text(L("لا توجد فعاليات قادمة")).foregroundStyle(.secondary)
             }
             ForEach(Array(upcoming)) { EventRow(event: $0) }
         }
@@ -149,11 +149,11 @@ struct HomeView: View {
 
     private var shortcuts: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("إجراء سريع").font(.caption).foregroundStyle(.secondary)
-            Text("اختصارات").font(.title2.bold())
-            shortcut("رفع صورة أو PDF", "يقرأ النظام الجدول من الصورة ثم يعرضه للمراجعة.", "doc.viewfinder") { sheet = .importRoster }
-            shortcut("إضافة موظف", "دعوة مرتبطة بالرقم الوظيفي", "person.badge.plus") { sheet = .addEmployee }
-            shortcut("سجل الإرسال", "الرسائل والتنبيهات", "paperplane") { screen = .alerts }
+            Text(L("إجراء سريع")).font(.caption).foregroundStyle(.secondary)
+            Text(L("اختصارات")).font(.title2.bold())
+            shortcut(L("رفع صورة أو PDF"), L("يقرأ النظام الجدول من الصورة ثم يعرضه للمراجعة."), "doc.viewfinder") { sheet = .importRoster }
+            shortcut(L("إضافة موظف"), L("دعوة مرتبطة بالرقم الوظيفي"), "person.badge.plus") { sheet = .addEmployee }
+            shortcut(L("سجل الإرسال"), L("الرسائل والتنبيهات"), "paperplane") { screen = .alerts }
         }
         .card()
     }

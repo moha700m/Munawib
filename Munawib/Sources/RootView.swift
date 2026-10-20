@@ -33,7 +33,7 @@ struct RootView: View {
             if drawerOpen {
                 Color.black.opacity(0.35).ignoresSafeArea()
                     .onTapGesture { toggle(false) }
-                    .accessibilityLabel("إغلاق القائمة")
+                    .accessibilityLabel(L("إغلاق القائمة"))
                 SideDrawer(screen: $screen, close: { toggle(false) })
                     .transition(.move(edge: .leading))
             }
@@ -91,7 +91,7 @@ struct HeaderBar: View {
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
             }
-            .accessibilityLabel("القائمة")
+            .accessibilityLabel(L("القائمة"))
             RoleBadge(title: Session.shared.roleTitle)
             Spacer()
             Menu {
@@ -116,9 +116,9 @@ struct HeaderBar: View {
                         }
                     }
             }
-            .accessibilityLabel("التنبيهات")
+            .accessibilityLabel(L("التنبيهات"))
             Button { screen = .settings } label: {
-                Text("حسابي")
+                Text(L("حسابي"))
                     .font(.subheadline.bold())
                     .padding(.horizontal, 14).frame(minHeight: 44)
                     .foregroundStyle(.white)
@@ -142,18 +142,18 @@ struct PageHeader: View {
     @Binding var sheet: ActiveSheet?
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(Fmt.date(Date(), "EEEE، d MMMM yyyy")).font(.subheadline).foregroundStyle(.secondary)
+            Text(Fmt.date(Date(), L("EEEE، d MMMM yyyy"))).font(.subheadline).foregroundStyle(.secondary)
             Text(screen.title).font(.largeTitle.bold())
             if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(.orange) }
-            Text(screen == .home ? "كل ما يخص مناوبات المستشفى في مكان واحد." : screen == .roster ? "عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد." : "اسحب للأسفل للتحديث.")
+            Text(screen == .home ? L("كل ما يخص مناوبات المستشفى في مكان واحد.") : screen == .roster ? L("عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد.") : L("اسحب للأسفل للتحديث."))
                 .font(.footnote).foregroundStyle(.secondary)
             if Session.shared.isHead && [Screen.home, .dashboard, .roster, .employees].contains(screen) { HStack(spacing: 12) {
-                Button { sheet = .addEmployee } label: { Label("إضافة موظف", systemImage: "person.badge.plus") }
+                Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "person.badge.plus") }
                     .buttonStyle(OutlineButtonStyle())
-                Button { sheet = .importRoster } label: { Label("رفع جدول", systemImage: "square.and.arrow.up") }
+                Button { sheet = .importRoster } label: { Label(L("رفع جدول"), systemImage: "square.and.arrow.up") }
                     .buttonStyle(PrimaryButtonStyle())
                 if screen == .roster {
-                    Button { sheet = .autoFill } label: { Label("تعبئة", systemImage: "wand.and.stars") }.buttonStyle(OutlineButtonStyle())
+                    Button { sheet = .autoFill } label: { Label(L("تعبئة"), systemImage: "wand.and.stars") }.buttonStyle(OutlineButtonStyle())
                 }
             }
             .padding(.top, 4) }
@@ -172,17 +172,17 @@ struct SideDrawer: View {
                 IconTile(symbol: "waveform.path.ecg", tint: .white, size: 48)
                     .background(Theme.primaryLight, in: RoundedRectangle(cornerRadius: 14))
                 VStack(alignment: .leading) {
-                    Text("مِناوب").font(.title2.bold())
-                    Text("إدارة المناوبات").font(.caption).opacity(0.7)
+                    Text(L("مِناوب")).font(.title2.bold())
+                    Text(L("إدارة المناوبات")).font(.caption).opacity(0.7)
                 }
                 Spacer()
                 Button(action: close) { Image(systemName: "xmark").font(.title3).frame(width: 44, height: 44) }
-                    .accessibilityLabel("إغلاق")
+                    .accessibilityLabel(L("إغلاق"))
             }
             HStack {
                 Image(systemName: "building.2").foregroundStyle(Theme.primaryLight)
                 VStack(alignment: .leading) {
-                    Text("المستشفى").font(.caption2).opacity(0.6)
+                    Text(L("المستشفى")).font(.caption2).opacity(0.6)
                     Text(store.data.settings.hospital).font(.subheadline.bold())
                 }
                 Spacer()

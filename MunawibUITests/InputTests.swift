@@ -13,7 +13,7 @@ final class InputTests: XCTestCase {
 
     func launch(_ args: [String]) {
         app = XCUIApplication()
-        app.launchArguments = args + ["-AppleLanguages", "(ar)", "-AppleLocale", "ar_SA", "-AppleKeyboards", "(ar@sw=Arabic, en_US@sw=QWERTY)"]
+        app.launchArguments = args + ["-appLanguage", "ar", "-AppleLanguages", "(ar)", "-AppleLocale", "ar_SA", "-AppleKeyboards", "(ar@sw=Arabic, en_US@sw=QWERTY)"]
         app.launch()
     }
 
@@ -100,5 +100,59 @@ final class InputTests: XCTestCase {
         n.tap()
         tapDigits("7788")
         assertLive(n, "7788", "employee_number_numberpad")
+    }
+
+}
+
+/// English localization + in-app language switch.
+final class LocalizationTests: XCTestCase {
+    let shotsDir = ProcessInfo.processInfo.environment["SHOTS_DIR"]
+    func shot(_ name: String) {
+        let s = XCUIScreen.main.screenshot()
+        let a = XCTAttachment(screenshot: s); a.name = name; a.lifetime = .keepAlways; add(a)
+        if let d = shotsDir { try? s.pngRepresentation.write(to: URL(fileURLWithPath: d).appendingPathComponent("\(name).png")) }
+    }
+    func launch(_ lang: String, _ args: [String]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = args + ["-appLanguage", lang, "-AppleLanguages", "(\(lang))"]
+        app.launch(); return app
+    }
+
+    func testEnglishLoginScreen() {
+        let app = launch("en", ["-auth", "login"])
+        XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 10), "English sign-in button")
+        XCTAssertTrue(app.buttons["Forgot password?"].exists)
+        XCTAssertFalse(app.buttons["تسجيل الدخول"].exists, "no Arabic leftovers")
+        shot("en_login")
+    }
+
+    func testArabicLoginScreen() {
+        let app = launch("ar", ["-auth", "login"])
+        XCTAssertTrue(app.buttons["تسجيل الدخول"].waitForExistence(timeout: 10))
+        shot("ar_login")
+    }
+
+    func testSwitchLanguageOnLogin() {
+        let app = launch("ar", ["-auth", "login"])
+        let menu = app.buttons["languageMenu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 10))
+        menu.tap()
+        let en = app.buttons["English"].firstMatch
+        XCTAssertTrue(en.waitForExistence(timeout: 5))
+        en.tap()
+        XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 5), "switch applies immediately")
+        shot("switch_to_en")
+    }
+
+    func testEnglishScreens() {
+        for (lang, screens) in [("en", ["home", "roster", "settings"]), ("ar", ["home", "roster", "settings"])] {
+            for sc in screens {
+                let app = launch(lang, ["-demo", "-screen", sc])
+                sleep(3)
+                if lang == "en" && sc == "settings" { XCTAssertTrue(app.staticTexts["Shift times"].waitForExistence(timeout: 5) || app.staticTexts["اللغة / Language"].exists) }
+                shot("\(lang)_\(sc)")
+                app.terminate()
+            }
+        }
     }
 }
