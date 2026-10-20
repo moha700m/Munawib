@@ -84,7 +84,7 @@ struct HeaderBar: View {
     @Binding var screen: Screen
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Button { withAnimation(.snappy) { drawerOpen = true } } label: {
                 Image(systemName: "line.3.horizontal").font(.title3)
                     .frame(width: 44, height: 44)
@@ -120,12 +120,12 @@ struct HeaderBar: View {
             }
             .accessibilityLabel(L("التنبيهات"))
             Button { screen = .settings } label: {
-                Text(L("حسابي")).lineLimit(1).minimumScaleFactor(0.75)
-                    .font(.subheadline.bold())
-                    .padding(.horizontal, 14).frame(minHeight: 44)
+                Image(systemName: "person.crop.circle").font(.title3)
+                    .frame(width: 44, height: 44)
                     .foregroundStyle(.white)
                     .background(Theme.primary, in: RoundedRectangle(cornerRadius: 12))
             }
+            .accessibilityLabel(L("حسابي"))
         }
         .tint(.primary)
         .padding(.horizontal).padding(.vertical, 8)
@@ -150,12 +150,12 @@ struct PageHeader: View {
             Text(screen == .home ? L("كل ما يخص مناوبات المستشفى في مكان واحد.") : screen == .roster ? L("عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد.") : L("اسحب للأسفل للتحديث."))
                 .font(.footnote).foregroundStyle(.secondary)
             if Session.shared.isHead && [Screen.home, .dashboard, .roster, .employees].contains(screen) { HStack(spacing: 12) {
-                Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "person.badge.plus") }
+                Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "person.badge.plus").lineLimit(1).minimumScaleFactor(0.7) }
                     .buttonStyle(OutlineButtonStyle())
-                Button { sheet = .importRoster } label: { Label(L("رفع جدول"), systemImage: "square.and.arrow.up") }
+                Button { sheet = .importRoster } label: { Label(L("رفع جدول"), systemImage: "square.and.arrow.up").lineLimit(1).minimumScaleFactor(0.7) }
                     .buttonStyle(PrimaryButtonStyle())
                 if screen == .roster {
-                    Button { sheet = .autoFill } label: { Label(L("تعبئة"), systemImage: "wand.and.stars") }.buttonStyle(OutlineButtonStyle())
+                    Button { sheet = .autoFill } label: { Label(L("تعبئة"), systemImage: "wand.and.stars").lineLimit(1).minimumScaleFactor(0.7) }.buttonStyle(OutlineButtonStyle())
                 }
             }
             .padding(.top, 4) }
