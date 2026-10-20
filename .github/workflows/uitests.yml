@@ -2,7 +2,7 @@ name: UI Tests
 on:
   workflow_dispatch:
   push:
-    branches: [main, l10n2]
+    branches: [main]
 jobs:
   uitests:
     strategy:
