@@ -58,8 +58,9 @@ enum PhotoOCR {
         return out
     }
 
-    /// Groups observations that share a baseline into one line (top to bottom, right to left), so a date and the
-    /// shift printed beside it end up in the same string even when Vision returns them as separate boxes.
+    /// Groups observations that share a baseline into one line (top to bottom), so a date and the shift printed
+    /// beside it end up in the same string even when Vision returns them as separate boxes. Rows containing Arabic
+    /// are joined right-to-left, Latin/numeric-only rows left-to-right, so "1 D 2 N" runs keep their order.
     private static func lines(from obs: [VNRecognizedTextObservation]) -> [String] {
         let sorted = obs.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
         var rows: [[VNRecognizedTextObservation]] = []
@@ -71,9 +72,9 @@ enum PhotoOCR {
             }
         }
         return rows.map { row in
-            row.sorted { $0.boundingBox.midX > $1.boundingBox.midX }
-                .compactMap { $0.topCandidates(1).first?.string }
-                .joined(separator: " ")
+            let texts = row.map { ($0.topCandidates(1).first?.string ?? "", $0.boundingBox.midX) }
+            let rtl = texts.contains { $0.0.unicodeScalars.contains { (0x0600...0x06FF).contains($0.value) } }
+            return texts.sorted { rtl ? $0.1 > $1.1 : $0.1 < $1.1 }.map(\.0).joined(separator: " ")
         }
     }
 }
