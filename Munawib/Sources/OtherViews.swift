@@ -152,7 +152,6 @@ struct AlertsView: View {
                     .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             .card()
-            NotificationTestPanel()
             VStack(alignment: .leading, spacing: 12) {
                 Text(L("متى يرسل النظام؟")).font(.title3.bold())
                 Label(L("اعتماد الجدول — بعد الاعتماد فقط."), systemImage: "paperplane")
@@ -181,6 +180,7 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @State private var newDept = ""
     @State private var confirmReset = false
+    @AppStorage("diagnostics") private var diagnostics = false
 
     var body: some View {
         @Bindable var store = store
@@ -229,16 +229,33 @@ struct SettingsView: View {
                 Stepper(L("التذكير قبل: %@ دقيقة", "\(store.data.settings.reminderMinutesBefore)"), value: $store.data.settings.reminderMinutesBefore, in: 0...240, step: 15)
                 Button(L("تطبيق على التنبيهات")) { Task { await store.rescheduleNotifications(); try? await Session.shared.updateProfile(name: nil, phone: nil, photo: nil, reminder: store.data.settings.reminderMinutesBefore) } }.buttonStyle(.bordered)
             }.card()
-            Button(L("إعادة البيانات التجريبية"), role: .destructive) { confirmReset = true }
-                .confirmationDialog(L("سيتم حذف كل البيانات"), isPresented: $confirmReset, titleVisibility: .visible) {
-                    Button(L("إعادة تعيين"), role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
-                }
+            if Session.shared.offlineMode {
+                Button(L("إعادة البيانات التجريبية"), role: .destructive) { confirmReset = true }
+                    .confirmationDialog(L("سيتم حذف كل البيانات"), isPresented: $confirmReset, titleVisibility: .visible) {
+                        Button(L("إعادة تعيين"), role: .destructive) { store.data = AppStore.seed(); store.currentMonth = Date() }
+                    }
+            }
             ProfileCard()
-            NotificationTestPanel()
+            legalCard
+            if diagnostics { NotificationTestPanel() }
             if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? L("الخروج من الوضع المحلي") : L("تسجيل الخروج"), systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
             Text(L("مِناوب %1$@ (%2$@) — %3$@", "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")", "\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "")", "\(Session.shared.online ? L("متزامن مع الخادم") : L("البيانات على هذا الجهاز"))")).font(.caption).foregroundStyle(.secondary)
+                .onLongPressGesture(minimumDuration: 1.5) { diagnostics.toggle(); Haptics.tap() }
+                .accessibilityHint(L("اضغط مطوّلًا لإظهار أدوات تشخيص التنبيهات"))
         }
+    }
+
+    /// Privacy policy and support pages hosted by the hospital's server (or the default Munawib server).
+    private var legalCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L("الخصوصية والدعم")).font(.title3.bold())
+            Link(destination: APIClient.baseURL.appendingPathComponent("privacy")) { Label(L("سياسة الخصوصية"), systemImage: "hand.raised") }
+            Divider().overlay(Theme.border)
+            Link(destination: APIClient.baseURL.appendingPathComponent("support")) { Label(L("الدعم والمساعدة"), systemImage: "questionmark.circle") }
+            Text(L("صور الجدول تُقرأ على جهازك ولا تُرسل إلى الخادم.")).font(.caption2).foregroundStyle(Theme.muted)
+        }
+        .card()
     }
 }
