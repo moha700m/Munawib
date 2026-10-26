@@ -125,6 +125,63 @@ extension AppStore {
         for e in departmentEmployees { switch code(for: e.id, day: day) { case .day: dc += 1; case .night: nc += 1; default: break } }
         return (dc, nc)
     }
+    /// Coverage of the selected department on an arbitrary date; nil when that month has no roster yet.
+    func coverage(on date: Date) -> (day: Int, night: Int)? {
+        let cal = Calendar.current
+        let y = cal.component(.year, from: date), m = cal.component(.month, from: date), d = cal.component(.day, from: date)
+        guard let r = data.rosters.first(where: { $0.year == y && $0.month == m && $0.department == data.selectedDepartment }) else { return nil }
+        var dc = 0, nc = 0
+        for e in r.entries { switch e.codes["\(d)"] { case .day?: dc += 1; case .night?: nc += 1; default: break } }
+        return (dc, nc)
+    }
+    /// Days (starting today) where the department is under its minimum day/night staffing.
+    func upcomingGaps(minDay: Int, minNight: Int, days: Int = 14) -> [CoverageGap] {
+        let cal = Calendar.current
+        return (0..<days).compactMap { i -> CoverageGap? in
+            guard let d = cal.date(byAdding: .day, value: i, to: Date()) else { return nil }
+            let c = coverage(on: d) ?? (day: 0, night: 0)
+            guard c.day < minDay || c.night < minNight else { return nil }
+            return CoverageGap(date: d, day: c.day, night: c.night, minDay: minDay, minNight: minNight)
+        }
+    }
+    /// Shift code for an employee on any date, looking across all stored rosters.
+    func code(for emp: UUID, on date: Date) -> ShiftCode {
+        let cal = Calendar.current
+        let y = cal.component(.year, from: date), m = cal.component(.month, from: date), d = cal.component(.day, from: date)
+        for r in data.rosters where r.year == y && r.month == m {
+            if let e = r.entries.first(where: { $0.employeeID == emp }) { return e.codes["\(d)"] ?? .empty }
+        }
+        return .empty
+    }
+    /// Number of day/night shifts rostered for an employee in the current month.
+    func rosterShiftCount(for emp: UUID) -> Int {
+        (1...daysInMonth).filter { let c = code(for: emp, day: $0); return c == .day || c == .night }.count
+    }
+    /// Next date (within `days`) where the employee has the given code.
+    func nextDate(for emp: UUID, code target: ShiftCode, days: Int = 60) -> Date? {
+        let cal = Calendar.current
+        for i in 0..<days {
+            guard let d = cal.date(byAdding: .day, value: i, to: Date()) else { continue }
+            if code(for: emp, on: d) == target { return d }
+        }
+        return nil
+    }
+}
+
+struct CoverageGap: Identifiable {
+    let date: Date
+    let day: Int
+    let night: Int
+    let minDay: Int
+    let minNight: Int
+    var id: Date { date }
+    var shortNight: Bool { night < minNight }
+    var shortfall: Int { max(1, (minDay - day).clampedToZero + (minNight - night).clampedToZero) }
+}
+
+extension Int { var clampedToZero: Int { max(0, self) } }
+
+extension AppStore {
     func autoFill(pattern: [ShiftCode], staggered: Bool) {
         for (i, e) in departmentEmployees.enumerated() {
             for d in 1...daysInMonth {
@@ -208,31 +265,105 @@ struct AutoFillSheet: View {
 // MARK: - My shifts
 struct MyShiftsView: View {
     @Environment(AppStore.self) private var store
+    @Binding var screen: Screen
     @State private var exportMsg: String?
+    @State private var reminderMsg: String?
+    @State private var showSwap = false
+    private var session: Session { Session.shared }
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Bento.gap) {
             if let me = store.myEmployee {
                 let shifts = store.upcomingShifts(for: me.id)
-                TodayShiftCard()
+                let s = store.data.settings
+                NextShiftHero()
+                weekStrip(me)
+                BentoRow { col in
+                    BentoStat(caption: L("ساعات الشهر"), value: "\(store.rosterHours(for: me.id))")
+                        .frame(width: Bento.span(2, col: col))
+                    if let leave = store.nextDate(for: me.id, code: .leave) {
+                        BentoStat(caption: L("إجازة قادمة"), value: Fmt.date(leave, "EEEE d"), valueFont: Bento.small)
+                            .frame(width: Bento.span(2, col: col))
+                    } else if let rest = store.nextDate(for: me.id, code: .rest) {
+                        BentoStat(caption: L("راحة قادمة"), value: Fmt.date(rest, "EEEE d"), valueFont: Bento.small)
+                            .frame(width: Bento.span(2, col: col))
+                    } else {
+                        BentoStat(caption: L("إجازة قادمة"), value: "—", valueFont: Bento.small)
+                            .frame(width: Bento.span(2, col: col))
+                    }
+                }
+                BentoRow { col in
+                    BentoAction(title: L("طلب تبديل"), symbol: "arrow.left.arrow.right", style: .green) {
+                        if session.online { showSwap = true } else { screen = .requests }
+                    }
+                    .frame(width: Bento.span(2, col: col))
+                    BentoAction(title: s.notificationsEnabled ? L("التنبيه مفعّل") : L("تنبيه قبلها"), symbol: s.notificationsEnabled ? "bell.badge.fill" : "bell",
+                                subtitle: L("قبل %@ دقيقة", "\(s.reminderMinutesBefore)")) { Task { await enableReminders() } }
+                        .frame(width: Bento.span(2, col: col))
+                }
+                if let reminderMsg { Text(reminderMsg).font(.footnote).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading) }
+
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack { Text(L("مناوباتي القادمة")).font(.title3.bold()); Spacer(); Text("\(shifts.count)").foregroundStyle(.secondary) }
+                    HStack { Text(L("مناوباتي القادمة")).font(.title3.weight(.heavy)); Spacer(); Text("\(shifts.count)").font(.headline).monospacedDigit().foregroundStyle(Theme.muted) }
                     if shifts.isEmpty { ContentUnavailableView(L("لا توجد مناوبات"), systemImage: "calendar.badge.exclamationmark", description: Text(L("ستظهر هنا بعد رفع الجدول."))) }
-                    ForEach(shifts.prefix(40), id: \.0) { s in
+                    ForEach(shifts.prefix(40), id: \.0) { sh in
                         HStack {
-                            Text(s.1.label).font(.headline).frame(width: 36, height: 36).background(s.1.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8)).foregroundStyle(s.1.color)
-                            VStack(alignment: .leading) { Text(Fmt.date(s.0, "EEEE d MMMM")).font(.subheadline.bold()); Text(L("%1$@ · %2$@ ساعة", "\(Fmt.date(s.0, "h:mm a"))", "\(store.data.settings.shiftLength)")).font(.caption).foregroundStyle(.secondary) }
+                            Text(sh.1.label).font(.headline).frame(width: 36, height: 36)
+                                .background(sh.1.chipBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous)).foregroundStyle(sh.1.chipForeground)
+                            VStack(alignment: .leading) {
+                                Text(Fmt.date(sh.0, "EEEE d MMMM")).font(.subheadline.bold())
+                                Text(L("%1$@ · %2$@ ساعة", "\(Fmt.date(sh.0, "h:mm a"))", "\(s.shiftLength)")).font(.caption).foregroundStyle(Theme.muted)
+                            }
                             Spacer()
                         }
                         Divider()
                     }
-                    Button { Task { exportMsg = await CalendarExport.add(shifts: shifts, hours: store.data.settings.shiftLength) } } label: { Label(L("إضافة للتقويم"), systemImage: "calendar.badge.plus") }
-                        .buttonStyle(PrimaryButtonStyle()).disabled(shifts.isEmpty)
-                    if let exportMsg { Text(exportMsg).font(.footnote).foregroundStyle(.secondary) }
+                    Button { Task { exportMsg = await CalendarExport.add(shifts: shifts, hours: s.shiftLength) } } label: { Label(L("إضافة للتقويم"), systemImage: "calendar.badge.plus") }
+                        .buttonStyle(OutlineButtonStyle()).disabled(shifts.isEmpty)
+                    if let exportMsg { Text(exportMsg).font(.footnote).foregroundStyle(Theme.muted) }
                 }.card()
             } else {
                 ContentUnavailableView(L("لم يتم ربط حسابك بموظف"), systemImage: "person.crop.circle.badge.questionmark", description: Text(L("سجّل الدخول برقمك الوظيفي وكلمة المرور، أو فعّل حسابك بكود الدعوة.")))
                     .card()
             }
+        }
+        .sheet(isPresented: $showSwap) { SwapForm() }
+    }
+
+    /// Seven navy chips for today and the next six days, coloured by shift code; today is ringed.
+    private func weekStrip(_ me: Employee) -> some View {
+        let cal = Calendar.current
+        let days: [Date] = (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: Date()) }
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(L("هذا الأسبوع")).bentoCaption(.dark)
+            HStack(spacing: 6) {
+                ForEach(days, id: \.self) { d in
+                    let c = store.code(for: me.id, on: d)
+                    Text(Fmt.date(d, "d"))
+                        .font(.footnote.weight(.bold)).monospacedDigit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(c.chipBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .foregroundStyle(c.chipForeground)
+                        .overlay {
+                            if cal.isDateInToday(d) { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.primaryLight, lineWidth: 2) }
+                        }
+                        .accessibilityLabel("\(Fmt.date(d, "EEEE d")): \(c.title)")
+                }
+            }
+        }
+        .bentoTile(.dark, rows: 1)
+    }
+
+    private func enableReminders() async {
+        let ok = await NotificationManager.shared.requestPermission()
+        store.data.settings.notificationsEnabled = ok
+        if ok {
+            await store.rescheduleNotifications()
+            reminderMsg = L("ستصلك التنبيهات قبل كل مناوبة بـ %@ دقيقة.", "\(store.data.settings.reminderMinutesBefore)")
+            Haptics.success()
+        } else {
+            reminderMsg = L("التنبيهات مرفوضة. فعّلها من الإعدادات ← مِناوب ← الإشعارات.")
+            Haptics.error()
         }
     }
 }
@@ -462,7 +593,7 @@ struct ReportsView: View {
                         LineMark(x: .value(L("اليوم"), x.d), y: .value(L("العدد"), x.c.night)).foregroundStyle(by: .value(L("نوع"), L("ليلي")))
                     }
                 }
-                .chartForegroundStyleScale([L("نهاري"): .blue, L("ليلي"): .purple])
+                .chartForegroundStyleScale([L("نهاري"): Theme.amber, L("ليلي"): Theme.indigo])
                 .frame(height: 180)
             }.card()
             HStack(spacing: 12) {
