@@ -179,7 +179,7 @@ struct CoverageGap: Identifiable {
     var shortfall: Int { max(1, (minDay - day).clampedToZero + (minNight - night).clampedToZero) }
 }
 
-extension Int { var clampedToZero: Int { max(0, self) } }
+extension Int { var clampedToZero: Int { Swift.max(0, self) } }
 
 extension AppStore {
     func autoFill(pattern: [ShiftCode], staggered: Bool) {
