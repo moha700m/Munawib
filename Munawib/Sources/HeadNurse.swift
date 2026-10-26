@@ -20,13 +20,9 @@ struct HeadNurseDashboard: View {
     private var session: Session { Session.shared }
 
     var body: some View {
-        let pending = (session.remote?.leaves.filter { $0.status == "pending" }.count ?? 0) + (session.remote?.swaps.filter { $0.status == "pending" }.count ?? 0)
         let today = store.todayCounts()
-        let todayStr = Session.day(Date())
-        let onLeave = (session.remote?.leaves ?? []).filter { $0.status == "approved" && $0.start_date <= todayStr && $0.end_date >= todayStr }
         let minD = session.myDepartment?.min_day ?? 2, minN = session.myDepartment?.min_night ?? 1
-        let gaps = upcomingGaps(minD: minD, minN: minN)
-        VStack(spacing: 16) {
+        VStack(spacing: Bento.gap) {
             if let info = session.signupInfo {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(L("احفظ هذه الرموز"), systemImage: "key.fill").font(.headline)
@@ -34,18 +30,22 @@ struct HeadNurseDashboard: View {
                     ShareLink(item: info) { Label(L("مشاركة"), systemImage: "square.and.arrow.up") }
                 }.card()
             }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-                StatCard(symbol: "tray.full", tint: .orange, caption: L("بانتظار الموافقة"), value: "\(pending)", footnote: L("إجازات وتبديلات"))
-                StatCard(symbol: "sun.max", tint: .blue, caption: L("تغطية اليوم"), value: "D\(today.day) · N\(today.night)", footnote: L("الحد الأدنى D%1$@ · N%2$@", "\(minD)", "\(minN)"))
-                StatCard(symbol: "airplane", tint: .pink, caption: L("في إجازة اليوم"), value: "\(onLeave.count)", footnote: onLeave.prefix(2).compactMap { session.user($0.user_id)?.name }.joined(separator: L("، ")))
-                StatCard(symbol: "exclamationmark.triangle", tint: .red, caption: L("فجوات قادمة (14 يوم)"), value: "\(gaps.count)", footnote: gaps.prefix(3).map { "\($0)" }.joined(separator: L("، ")))
+            DepartmentBento(screen: $screen, sheet: $sheet)
+            BentoRow { col in
+                BentoStat(caption: L("تغطية اليوم"), value: "D\(today.day) · N\(today.night)", footnote: L("الحد الأدنى D%1$@ · N%2$@", "\(minD)", "\(minN)"), valueFont: Bento.small)
+                    .frame(width: Bento.span(2, col: col))
+                if let code = session.remote?.hospital?.code {
+                    BentoStat(caption: L("رمز المستشفى لدخول الموظفين"), value: code, valueFont: Bento.small)
+                        .frame(width: Bento.span(2, col: col))
+                        .textSelection(.enabled)
+                } else {
+                    BentoStat(caption: L("الموظفون"), value: "\(store.departmentEmployees.count)", footnote: L("في القسم الحالي"))
+                        .frame(width: Bento.span(2, col: col))
+                }
             }
-            if let code = session.remote?.hospital?.code {
-                HStack { Label(L("رمز المستشفى لدخول الموظفين"), systemImage: "building.2"); Spacer(); Text(code).font(.headline.monospaced()).textSelection(.enabled) }.card()
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L("إجراءات سريعة")).font(.title3.bold())
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L("إجراءات سريعة")).bentoCaption().padding(.horizontal, 4)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: Bento.gap), GridItem(.flexible())], spacing: Bento.gap) {
                     quick(L("الموافقات"), "checkmark.seal") { screen = .requests }
                     quick(L("الجدول"), "calendar") { screen = .roster }
                     quick(L("تعبئة عادلة"), "wand.and.stars") { screen = .roster; sheet = .autoFill }
@@ -55,31 +55,15 @@ struct HeadNurseDashboard: View {
                     quick(L("التقارير"), "chart.bar") { screen = .reports }
                     quick(L("سجل التدقيق"), "list.bullet.clipboard") { showAudit = true }
                 }
-            }.card()
+            }
         }
         .sheet(isPresented: $showPush) { CustomPushSheet() }
         .sheet(isPresented: $showAudit) { AuditLogView() }
     }
 
-    private func upcomingGaps(minD: Int, minN: Int) -> [String] {
-        let cal = Calendar.current
-        var out: [String] = []
-        for i in 0..<14 {
-            guard let d = cal.date(byAdding: .day, value: i, to: Date()) else { continue }
-            let y = cal.component(.year, from: d), m = cal.component(.month, from: d), day = cal.component(.day, from: d)
-            guard let r = store.data.rosters.first(where: { $0.year == y && $0.month == m && $0.department == store.data.selectedDepartment }) else { out.append(Fmt.date(d, "d/M")); continue }
-            var dc = 0, nc = 0
-            for e in r.entries { switch e.codes["\(day)"] { case .day?: dc += 1; case .night?: nc += 1; default: break } }
-            if dc < minD || nc < minN { out.append(Fmt.date(d, "d/M")) }
-        }
-        return out
-    }
-
     private func quick(_ t: String, _ s: String, _ a: @escaping () -> Void) -> some View {
-        Button { UIImpactFeedbackGenerator(style: .light).impactOccurred(); a() } label: {
-            Label(t, systemImage: s).frame(maxWidth: .infinity, minHeight: 48)
-                .background(Theme.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-        }
+        BentoAction(title: t, symbol: s) { Haptics.tap(); a() }
+            .frame(height: Bento.row)
     }
 }
 

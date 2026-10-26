@@ -12,22 +12,24 @@ struct RootView: View {
             NavigationStack {
                 VStack(spacing: 0) {
                     HeaderBar(drawerOpen: $drawerOpen, screen: $screen)
-                    Divider()
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            PageHeader(screen: screen, sheet: $sheet)
+                        VStack(alignment: .leading, spacing: Bento.gap) {
+                            PageHeader(screen: screen, subtitle: subtitle, sheet: $sheet)
                             content
                         }
                         .id(screen)
                         .transition(.opacity.combined(with: .offset(y: 8)))
-                        .padding()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
                         .frame(maxWidth: 900)
                         .frame(maxWidth: .infinity)
                     }
                     .refreshable { try? await Session.shared.refresh() }
                     .keyboardDone()
                     .background(Theme.background.onTapGesture { KeyboardHelper.dismiss() })
+                    BentoTabBar(screen: $screen, tabs: tabs)
                 }
+                .background(Theme.background.ignoresSafeArea())
                 .toolbar(.hidden, for: .navigationBar)
             }
             if drawerOpen {
@@ -60,12 +62,28 @@ struct RootView: View {
         withAnimation(reduceMotion ? nil : .snappy) { drawerOpen = v }
     }
 
+    /// Bottom tabs by role; everything else stays reachable from the side menu.
+    private var tabs: [Screen] {
+        let s = Session.shared
+        if s.isHead && !s.offlineMode { return [.dashboard, .myShifts, .roster, .employees, .settings] }
+        if s.isManager { return [.home, .myShifts, .roster, .employees, .settings] }
+        return [.myShifts, .roster, .requests, .announcements, .settings]
+    }
+
+    /// Small context line beside the page title ("Pediatrics · 19 October", "16 shifts · 192 h").
+    private var subtitle: String {
+        if screen == .myShifts, let me = store.myEmployee {
+            return L("%1$@ مناوبة · %2$@ ساعة", "\(store.rosterShiftCount(for: me.id))", "\(store.rosterHours(for: me.id))")
+        }
+        return "\(Dept.display(store.data.selectedDepartment)) · \(Fmt.date(Date(), "d MMMM"))"
+    }
+
     @ViewBuilder private var content: some View {
         switch screen {
         case .dashboard: HeadNurseDashboard(screen: $screen, sheet: $sheet)
         case .home: HomeView(screen: $screen, sheet: $sheet)
         case .roster: RosterView(); CoverageWarnings()
-        case .myShifts: MyShiftsView()
+        case .myShifts: MyShiftsView(screen: $screen)
         case .requests: RequestsView()
         case .announcements: AnnouncementsView()
         case .reports: ReportsView()
@@ -86,50 +104,49 @@ struct HeaderBar: View {
     var body: some View {
         HStack(spacing: 8) {
             Button { withAnimation(.snappy) { drawerOpen = true } } label: {
-                Image(systemName: "line.3.horizontal").font(.title3)
+                Image(systemName: "line.3.horizontal").font(.title3.weight(.semibold))
                     .frame(width: 44, height: 44)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.border, lineWidth: 1))
             }
             .accessibilityLabel(L("القائمة"))
-            RoleBadge(title: Session.shared.roleShortTitle).layoutPriority(1)
             Spacer(minLength: 4)
             Menu {
                 ForEach(Session.shared.me?.role == "admin" || Session.shared.offlineMode ? store.data.settings.departments : [store.data.selectedDepartment], id: \.self) { d in
                     Button(Dept.display(d)) { store.selectDepartment(d) }
                 }
             } label: {
-                Label(Dept.display(store.data.selectedDepartment), systemImage: "chevron.down")
-                    .labelStyle(TrailingIconLabel())
-                    .font(.subheadline.bold())
-                    .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.8)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    RoleBadge(title: Session.shared.roleShortTitle)
+                    Text(Dept.display(store.data.selectedDepartment))
+                        .font(.subheadline.bold())
+                        .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(Theme.muted)
+                }
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(Theme.card, in: Capsule())
+                .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
             }
             .layoutPriority(-1)
             Spacer(minLength: 4)
             Button { screen = .alerts } label: {
-                Image(systemName: "bell").font(.title3)
+                Image(systemName: "bell").font(.title3.weight(.semibold))
                     .frame(width: 44, height: 44)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary))
-                    .overlay(alignment: .topLeading) {
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.border, lineWidth: 1))
+                    .overlay(alignment: .topTrailing) {
                         if !store.data.settings.notificationsEnabled {
-                            Circle().fill(.red).frame(width: 8, height: 8).offset(x: 9, y: 9)
+                            Circle().fill(Theme.coral).frame(width: 8, height: 8).padding(8)
                         }
                     }
             }
             .accessibilityLabel(L("التنبيهات"))
-            Button { screen = .settings } label: {
-                Image(systemName: "person.crop.circle").font(.title3)
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(.white)
-                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .accessibilityLabel(L("حسابي"))
         }
-        .tint(.primary)
-        .padding(.horizontal).padding(.vertical, 8)
-        .background(Theme.card)
+        .tint(Theme.ink)
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .background(Theme.background)
     }
 }
 
@@ -141,15 +158,19 @@ struct TrailingIconLabel: LabelStyle {
 
 struct PageHeader: View {
     let screen: Screen
+    let subtitle: String
     @Binding var sheet: ActiveSheet?
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(Fmt.date(Date(), L("EEEE، d MMMM yyyy"))).font(.subheadline).foregroundStyle(.secondary)
-            Text(screen.title).font(.largeTitle.bold())
-            if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(.orange) }
-            Text(screen == .home ? L("كل ما يخص مناوبات المستشفى في مكان واحد.") : screen == .roster ? L("عدّل أي خانة غير صحيحة قبل حفظ المراجعة أو الاعتماد.") : L("اسحب للأسفل للتحديث."))
-                .font(.footnote).foregroundStyle(.secondary)
-            if Session.shared.isHead && [Screen.home, .dashboard, .roster, .employees].contains(screen) { HStack(spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(screen.title).font(.title.weight(.heavy)).foregroundStyle(Theme.ink)
+                    .lineLimit(2).minimumScaleFactor(0.7)
+                Spacer(minLength: 8)
+                Text(subtitle).font(.caption).foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.trailing).lineLimit(2)
+            }
+            if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(Theme.amber) }
+            if Session.shared.isHead && [Screen.roster, .employees].contains(screen) { HStack(spacing: 10) {
                 Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "person.badge.plus").lineLimit(1).minimumScaleFactor(0.7) }
                     .buttonStyle(OutlineButtonStyle())
                 Button { sheet = .importRoster } label: { Label(L("رفع جدول"), systemImage: "square.and.arrow.up").lineLimit(1).minimumScaleFactor(0.7) }
@@ -158,8 +179,47 @@ struct PageHeader: View {
                     Button { sheet = .autoFill } label: { Label(L("تعبئة"), systemImage: "wand.and.stars").lineLimit(1).minimumScaleFactor(0.7) }.buttonStyle(OutlineButtonStyle())
                 }
             }
-            .padding(.top, 4) }
+            .padding(.top, 2) }
         }
+        .padding(.bottom, 2)
+    }
+}
+
+/// Bottom tab bar: white surface, hairline top border, health-green active tab.
+struct BentoTabBar: View {
+    @Binding var screen: Screen
+    let tabs: [Screen]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var selected: Screen? { tabs.first { screen.tabFamily.contains($0) } }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(tabs) { tab in
+                let on = selected == tab
+                Button {
+                    Haptics.tap()
+                    withAnimation(reduceMotion ? nil : .snappy) { screen = tab }
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: on ? tab.tabSymbolFilled : tab.tabSymbol)
+                            .font(.system(size: 21, weight: on ? .semibold : .regular))
+                            .frame(height: 24)
+                        Text(tab.tabTitle).font(.caption2.weight(on ? .bold : .medium)).lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .foregroundStyle(on ? Theme.primary : Theme.muted)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.tabTitle)
+                .accessibilityAddTraits(on ? [.isSelected] : [])
+            }
+        }
+        .padding(.top, 8)
+        .padding(.horizontal, 6)
+        .background(Theme.card.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
 }
 
