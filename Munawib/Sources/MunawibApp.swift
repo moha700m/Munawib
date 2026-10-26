@@ -81,6 +81,56 @@ enum Screen: String, CaseIterable, Identifiable {
         case .settings: return "gearshape"
         }
     }
+
+    // MARK: Bottom tab bar
+    /// Short label used in the tab bar.
+    var tabTitle: String {
+        switch self {
+        case .dashboard, .home: return L("الرئيسية")
+        case .myShifts: return L("مناوباتي")
+        case .roster: return L("الجدول")
+        case .employees: return L("الفريق")
+        case .requests: return L("الطلبات")
+        case .settings: return L("حسابي")
+        default: return title
+        }
+    }
+    var tabSymbol: String {
+        switch self {
+        case .dashboard, .home: return "house"
+        case .myShifts: return "calendar"
+        case .roster: return "tablecells"
+        case .employees: return "person.2"
+        case .requests: return "arrow.left.arrow.right.square"
+        case .announcements: return "megaphone"
+        case .settings: return "person.crop.circle"
+        default: return symbol
+        }
+    }
+    var tabSymbolFilled: String {
+        switch self {
+        case .dashboard, .home: return "house.fill"
+        case .myShifts: return "calendar"
+        case .roster: return "tablecells.fill"
+        case .employees: return "person.2.fill"
+        case .requests: return "arrow.left.arrow.right.square.fill"
+        case .announcements: return "megaphone.fill"
+        case .settings: return "person.crop.circle.fill"
+        default: return symbol
+        }
+    }
+    /// Tabs that should light up while this screen is showing (sub-screens roll up to their parent tab).
+    var tabFamily: [Screen] {
+        switch self {
+        case .dashboard, .home, .alerts, .reports: return [.dashboard, .home]
+        case .announcements: return [.announcements, .dashboard, .home]
+        case .myShifts, .events: return [.myShifts]
+        case .roster, .hours: return [.roster]
+        case .employees: return [.employees]
+        case .requests: return [.requests, .dashboard, .home]
+        case .settings: return [.settings]
+        }
+    }
 }
 
 enum ActiveSheet: Identifiable {

@@ -237,7 +237,7 @@ struct SettingsView: View {
             if Session.shared.online { DeleteAccountCard() }
             Button(role: .destructive) { Session.shared.logout() } label: { Label(Session.shared.offlineMode ? L("الخروج من الوضع المحلي") : L("تسجيل الخروج"), systemImage: "rectangle.portrait.and.arrow.right") }
                 .buttonStyle(OutlineButtonStyle())
-            Text(L("مِناوب 2.2 — %@", "\(Session.shared.online ? L("متزامن مع الخادم") : L("البيانات على هذا الجهاز"))")).font(.caption).foregroundStyle(.secondary)
+            Text(L("مِناوب %1$@ (%2$@) — %3$@", "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")", "\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "")", "\(Session.shared.online ? L("متزامن مع الخادم") : L("البيانات على هذا الجهاز"))")).font(.caption).foregroundStyle(.secondary)
         }
     }
 }

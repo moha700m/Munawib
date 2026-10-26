@@ -76,8 +76,8 @@ struct RosterView: View {
                     }
                     .padding(12)
                 }
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(.quaternary))
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.border, lineWidth: 1))
                 legend
                 Button {
                     pdfURL = RosterPDF.make(store: store)
