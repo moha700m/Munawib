@@ -24,7 +24,7 @@ struct MunawibApp: App {
                 if session.isLoggedIn { RootView().transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 1.02)), removal: .opacity)) }
                 else { AuthView().transition(.opacity) }
             }
-            .animation(.easeInOut(duration: 0.35), value: session.isLoggedIn)
+            .animation(.easeOut(duration: 0.28), value: session.isLoggedIn)
             .sheet(isPresented: Binding(get: { session.showHospitalCreated && session.isLoggedIn }, set: { session.showHospitalCreated = $0 })) { HospitalCreatedSheet() }
                 .environment(store)
                 .environment(session)
@@ -42,6 +42,7 @@ struct MunawibApp: App {
                 .environment(\.locale, language.locale)
                 .id(language.lang)
                 .tint(Theme.primary)
+                .preferredColorScheme(.dark)
         }
     }
 }
@@ -52,7 +53,7 @@ enum Screen: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dashboard: return L("لوحة رئيسة التمريض")
-        case .home: return L("الرئيسية")
+        case .home: return L("مدار يومك")
         case .roster: return L("جداول المناوبات")
         case .myShifts: return L("مناوباتي")
         case .requests: return L("الإجازات والتبديل")
@@ -68,7 +69,7 @@ enum Screen: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .dashboard: return "rectangle.3.group"
-        case .home: return "square.grid.2x2"
+        case .home: return "circle.circle"
         case .roster: return "calendar"
         case .myShifts: return "person.badge.clock"
         case .requests: return "arrow.left.arrow.right.circle"
@@ -86,7 +87,8 @@ enum Screen: String, CaseIterable, Identifiable {
     /// Short label used in the tab bar.
     var tabTitle: String {
         switch self {
-        case .dashboard, .home: return L("الرئيسية")
+        case .dashboard: return L("الرئيسية")
+        case .home: return L("مدار")
         case .myShifts: return L("مناوباتي")
         case .roster: return L("الجدول")
         case .employees: return L("الفريق")
@@ -97,7 +99,8 @@ enum Screen: String, CaseIterable, Identifiable {
     }
     var tabSymbol: String {
         switch self {
-        case .dashboard, .home: return "house"
+        case .dashboard: return "house"
+        case .home: return "circle.circle"
         case .myShifts: return "calendar"
         case .roster: return "tablecells"
         case .employees: return "person.2"
@@ -109,7 +112,8 @@ enum Screen: String, CaseIterable, Identifiable {
     }
     var tabSymbolFilled: String {
         switch self {
-        case .dashboard, .home: return "house.fill"
+        case .dashboard: return "house.fill"
+        case .home: return "circle.circle.fill"
         case .myShifts: return "calendar"
         case .roster: return "tablecells.fill"
         case .employees: return "person.2.fill"

@@ -223,6 +223,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(L("أوقات الشفتات")).font(.title3.bold())
                 Stepper(L("بداية النهاري: %@:00", "\(store.data.settings.dayStartHour)"), value: $store.data.settings.dayStartHour, in: 0...23)
+                Stepper(L("بداية المسائي: %@:00", "\(store.data.settings.eveningStart)"), value: $store.data.settings.eveningStart, in: 0...23)
                 Stepper(L("بداية الليلي: %@:00", "\(store.data.settings.nightStartHour)"), value: $store.data.settings.nightStartHour, in: 0...23)
                 Stepper(L("طول الشفت: %@ ساعة", "\(store.data.settings.shiftLength)"), value: $store.data.settings.shiftLength, in: 4...24)
                 Stepper(L("التذكير قبل: %@ دقيقة", "\(store.data.settings.reminderMinutesBefore)"), value: $store.data.settings.reminderMinutesBefore, in: 0...240, step: 15)

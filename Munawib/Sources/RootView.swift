@@ -43,7 +43,7 @@ struct RootView: View {
         .sheet(item: $sheet) { s in
             switch s {
             case .addEmployee: EmployeeForm(employee: nil)
-            case .importRoster: ImportRosterSheet()
+            case .importRoster: PhotoImportSheet()
             case .addHours: HoursForm()
             case .addEvent: EventForm()
             case .autoFill: AutoFillSheet()
@@ -53,13 +53,13 @@ struct RootView: View {
         .sensoryFeedback(.selection, trigger: screen)
         .task {
             if let s = UserDefaults.standard.string(forKey: "screen"), let sc = Screen(rawValue: s) { screen = sc }
-            else if Session.shared.me?.role == "head_nurse" { screen = .dashboard } else if Session.shared.online && !Session.shared.isManager { screen = .myShifts }
+            else if Session.shared.me?.role == "head_nurse" { screen = .dashboard }
             await store.rescheduleNotifications()
         }
     }
 
     private func toggle(_ v: Bool) {
-        withAnimation(reduceMotion ? nil : .snappy) { drawerOpen = v }
+        withAnimation(Motion.entry(reduceMotion)) { drawerOpen = v }
     }
 
     /// Bottom tabs by role; everything else stays reachable from the side menu.
@@ -67,7 +67,7 @@ struct RootView: View {
         let s = Session.shared
         if s.isHead && !s.offlineMode { return [.dashboard, .myShifts, .roster, .employees, .settings] }
         if s.isManager { return [.home, .myShifts, .roster, .employees, .settings] }
-        return [.myShifts, .roster, .requests, .announcements, .settings]
+        return [.home, .myShifts, .roster, .requests, .settings]
     }
 
     /// Small context line beside the page title ("Pediatrics · 19 October", "16 shifts · 192 h").
@@ -103,7 +103,7 @@ struct HeaderBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button { withAnimation(.snappy) { drawerOpen = true } } label: {
+            Button { withAnimation(Motion.entry) { drawerOpen = true } } label: {
                 Image(systemName: "line.3.horizontal").font(.title3.weight(.semibold))
                     .frame(width: 44, height: 44)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -169,7 +169,7 @@ struct PageHeader: View {
                 Text(subtitle).font(.caption).foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.trailing).lineLimit(2)
             }
-            if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(Theme.amber) }
+            if let err = Session.shared.lastError { Label(err, systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(Theme.coral) }
             if Session.shared.isHead && [Screen.roster, .employees].contains(screen) { HStack(spacing: 10) {
                 Button { sheet = .addEmployee } label: { Label(L("إضافة موظف"), systemImage: "person.badge.plus").lineLimit(1).minimumScaleFactor(0.7) }
                     .buttonStyle(OutlineButtonStyle())
@@ -185,7 +185,7 @@ struct PageHeader: View {
     }
 }
 
-/// Bottom tab bar: white surface, hairline top border, health-green active tab.
+/// Bottom tab bar: dark surface, hairline top border, amber active tab.
 struct BentoTabBar: View {
     @Binding var screen: Screen
     let tabs: [Screen]
@@ -199,7 +199,7 @@ struct BentoTabBar: View {
                 let on = selected == tab
                 Button {
                     Haptics.tap()
-                    withAnimation(reduceMotion ? nil : .snappy) { screen = tab }
+                    withAnimation(Motion.quick(reduceMotion)) { screen = tab }
                 } label: {
                     VStack(spacing: 3) {
                         Image(systemName: on ? tab.tabSymbolFilled : tab.tabSymbol)
@@ -231,8 +231,8 @@ struct SideDrawer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                IconTile(symbol: "waveform.path.ecg", tint: .white, size: 48)
-                    .background(Theme.primaryLight, in: RoundedRectangle(cornerRadius: 14))
+                IconTile(symbol: "circle.circle", tint: Theme.onPrimary, size: 48)
+                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 VStack(alignment: .leading) {
                     Text(L("مِناوب")).font(.title2.bold())
                     Text(L("إدارة المناوبات")).font(.caption).opacity(0.7)
@@ -242,7 +242,7 @@ struct SideDrawer: View {
                     .accessibilityLabel(L("إغلاق"))
             }
             HStack {
-                Image(systemName: "building.2").foregroundStyle(Theme.primaryLight)
+                Image(systemName: "building.2").foregroundStyle(Theme.primary)
                 VStack(alignment: .leading) {
                     Text(L("المستشفى")).font(.caption2).opacity(0.6)
                     Text(store.data.settings.hospital).font(.subheadline.bold())
@@ -250,7 +250,7 @@ struct SideDrawer: View {
                 Spacer()
             }
             .padding(12)
-            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+            .background(Theme.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.vertical, 8)
             ScrollView {
                 VStack(spacing: 2) {
@@ -259,22 +259,24 @@ struct SideDrawer: View {
             }
             item(for: .settings)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.ink)
         .padding()
         .frame(width: 310)
         .frame(maxHeight: .infinity)
-        .background(Theme.navy.ignoresSafeArea())
+        .background(Theme.card.ignoresSafeArea())
+        .overlay(alignment: .trailing) { Rectangle().fill(Theme.border).frame(width: 1).ignoresSafeArea() }
     }
 
     private func item(for s: Screen) -> some View {
         Button { UISelectionFeedbackGenerator().selectionChanged(); screen = s; close() } label: {
             Label(s.title, systemImage: s.symbol)
                 .font(.body.weight(screen == s ? .bold : .regular))
+                .foregroundStyle(screen == s ? Theme.primary : Theme.ink)
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .padding(.horizontal, 12)
-                .background(screen == s ? Theme.primary.opacity(0.45) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                .background(screen == s ? Theme.primary.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .leading) {
-                    if screen == s { Capsule().fill(Theme.primaryLight).frame(width: 4, height: 30) }
+                    if screen == s { Capsule().fill(Theme.primary).frame(width: 4, height: 30) }
                 }
         }
         .accessibilityAddTraits(screen == s ? .isSelected : [])

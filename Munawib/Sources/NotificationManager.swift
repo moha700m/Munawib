@@ -40,10 +40,10 @@ final class NotificationManager {
             for entry in roster.entries {
                 guard let emp = store.employee(entry.employeeID) else { continue }
                 if let me, emp.employeeNumber != me { continue }
-                for (dayKey, code) in entry.codes where code == .day || code == .night {
-                    guard let day = Int(dayKey) else { continue }
+                for (dayKey, code) in entry.codes where code.isWorking {
+                    guard let day = Int(dayKey), let hour = s.startHour(code) else { continue }
                     var comps = DateComponents(year: roster.year, month: roster.month, day: day)
-                    comps.hour = code == .day ? s.dayStartHour : s.nightStartHour
+                    comps.hour = hour
                     guard let start = cal.date(from: comps) else { continue }
                     let fire = start.addingTimeInterval(TimeInterval(-s.reminderMinutesBefore * 60))
                     if fire > now {

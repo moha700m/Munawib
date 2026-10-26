@@ -75,13 +75,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "لاختيار صورة الجدول وقراءتها."
+            "value": "يحتاج مِناوب الوصول إلى صورك لاختيار صورة الجدول الورقي وقراءة المناوبات منها على جهازك."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To pick a roster image and read it."
+            "value": "Munawib needs access to your photos to pick a picture of the paper roster and read your shifts from it on your device."
           }
         }
       }
@@ -92,13 +92,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "لتصوير الجدول."
+            "value": "يحتاج مِناوب الكاميرا لتصوير الجدول الورقي وقراءة المناوبات منه على جهازك."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To take a photo of the roster."
+            "value": "Munawib needs the camera to photograph the paper roster and read your shifts from it on your device."
           }
         }
       }

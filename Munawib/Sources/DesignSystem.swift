@@ -123,16 +123,17 @@ enum Bento {
     static let heroLarge = Font.system(size: 56, weight: .heavy, design: .rounded)
 }
 
+/// Tile styles: `light` = base card, `dark` = raised card, `green` = amber accent (primary action), `danger` = coral tint.
 enum BentoStyle {
     case light, dark, green, danger
     var background: Color {
         switch self { case .light: return Theme.card; case .dark: return Theme.tileDark; case .green: return Theme.primary; case .danger: return Theme.dangerSoft }
     }
     var border: Color {
-        switch self { case .light: return Theme.border; case .danger: return Theme.dangerBorder; case .dark, .green: return .clear }
+        switch self { case .light: return Theme.border; case .dark: return Theme.borderStrong; case .danger: return Theme.dangerBorder; case .green: return .clear }
     }
     var foreground: Color {
-        switch self { case .light, .danger: return Theme.ink; case .dark, .green: return .white }
+        switch self { case .light, .danger, .dark: return Theme.ink; case .green: return Theme.onPrimary }
     }
     var caption: Color {
         switch self { case .light, .danger: return Theme.muted; case .dark: return Theme.slate; case .green: return Theme.primaryPale }
@@ -201,7 +202,7 @@ struct BentoPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -226,39 +227,14 @@ struct BentoAction: View {
     }
 }
 
-// MARK: - Shifts hero
-
-/// Navy hero with the mint countdown to the next shift (or time left on the current one). Refreshes every minute.
-struct NextShiftHero: View {
-    @Environment(AppStore.self) private var store
+/// Small coloured legend dot + label used under the dial and in lists.
+struct CodeDot: View {
+    let code: ShiftCode
     var body: some View {
-        if let me = store.myEmployee {
-            TimelineView(.periodic(from: .now, by: 60)) { ctx in
-                let now = ctx.date
-                let shifts = store.upcomingShifts(for: me.id)
-                let len = Double(store.data.settings.shiftLength) * 3600
-                let current = shifts.first { $0.0 <= now && now < $0.0.addingTimeInterval(len) }
-                let next = current ?? shifts.first { $0.0 > now }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(current != nil ? L("مناوبتك الآن · تنتهي بعد") : L("المناوبة القادمة بعد")).bentoCaption(.dark)
-                    if let n = next {
-                        let cd = Countdown.parts(until: current != nil ? n.0.addingTimeInterval(len) : n.0, from: now)
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(cd.value).font(Bento.heroLarge).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
-                            if let u = cd.unit { Text(u).font(.title3.bold()) }
-                        }
-                        .foregroundStyle(Theme.primaryLight)
-                        Spacer(minLength: 0)
-                        Text("\(n.1.title) · \(Fmt.date(n.0, "EEEE d MMMM")) · \(Fmt.date(n.0, "h:mm a"))")
-                            .font(.caption).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.8)
-                    } else {
-                        Spacer(minLength: 0)
-                        Text(L("لا توجد مناوبات قادمة")).font(.title3.bold())
-                    }
-                }
-                .bentoTile(.dark, rows: 2)
-            }
-            .accessibilityElement(children: .combine)
+        HStack(spacing: 5) {
+            Circle().fill(code.color).frame(width: 8, height: 8)
+            Text(code.title).font(.caption).foregroundStyle(Theme.muted)
         }
+        .accessibilityElement(children: .combine)
     }
 }

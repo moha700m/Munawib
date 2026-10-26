@@ -17,7 +17,7 @@ struct InviteCodeRow: View {
                 Spacer()
                 Button {
                     UIPasteboard.general.string = code; Haptics.success()
-                    withAnimation(.snappy) { copied = true }
+                    withAnimation(Motion.entry) { copied = true }
                     Task { try? await Task.sleep(for: .seconds(1.5)); withAnimation { copied = false } }
                 } label: { Label(copied ? L("تم النسخ") : L("نسخ"), systemImage: copied ? "checkmark" : "doc.on.doc") }
                 .buttonStyle(.bordered).tint(copied ? .green : Theme.primary)

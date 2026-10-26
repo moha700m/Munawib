@@ -1,38 +1,48 @@
 import SwiftUI
 
-/// «بينتو» visual system: navy base, health-green accent, flat bordered tiles on a cool off-white canvas.
+/// «مدار» visual system: near-black surfaces, amber for day shifts, indigo for night, pink for evening.
+/// The app is dark-only (see `preferredColorScheme(.dark)` on the root), so the tokens are constants.
 enum Theme {
-    // Accent
-    static let primary = Color(hex: 0x059669)        // health green
-    static let primaryLight = Color(hex: 0x34D399)   // mint (bars, hero digits)
-    static let primaryPale = Color(hex: 0xD1FAE5)    // captions on green tiles
-    // Base
-    static let navy = Color(hex: 0x0F172A)
-    static let navySoft = Color(hex: 0x1E293B)
-    static let slate = Color(hex: 0x94A3B8)          // captions on navy tiles
-    // Shift / status hues
-    static let amber = Color(hex: 0xF59E0B)
+    // Shift hues (also the accent system: amber is the primary action colour)
+    static let amber = Color(hex: 0xFBBF24)
     static let indigo = Color(hex: 0x6366F1)
+    static let pink = Color(hex: 0xEC4899)
+
+    static let primary = amber
+    static let onPrimary = Color(hex: 0x0E0F12)           // text on amber
+    static let primaryLight = Color(hex: 0xFDE68A)        // amber highlight (digits, rings)
+    static let primaryPale = Color.black.opacity(0.62)    // captions on amber tiles
+
+    // Surfaces
+    static let background = Color(hex: 0x0E0F12)
+    static let card = Color(hex: 0x16181D)
+    static let surfaceRaised = Color(hex: 0x1D2027)
+    static let border = Color.white.opacity(0.08)
+    static let borderStrong = Color.white.opacity(0.14)
+    static let track = Color.white.opacity(0.06)
+
+    // Text
+    static let ink = Color(hex: 0xF4F4F5)
+    static let muted = Color(hex: 0x9CA3AF)
+    static let faint = Color(hex: 0x6B7280)
+
+    // Status
+    static let success = Color(hex: 0x34D399)
     static let coral = Color(hex: 0xF87171)
-    static let danger = Color(hex: 0xB91C1C)
-    static let dangerBorder = Color(hex: 0xFCA5A5)
+    static let danger = Color(hex: 0xF87171)
+    static let dangerSoft = Color(hex: 0xF87171).opacity(0.14)
+    static let dangerBorder = Color(hex: 0xF87171).opacity(0.35)
+
+    // Legacy names kept for the shared tiles / drawer
+    static let navy = Color(hex: 0x16181D)
+    static let navySoft = Color(hex: 0x1D2027)
+    static let slate = Color(hex: 0x9CA3AF)
+    static let tileDark = Color(hex: 0x1D2027)
+    static let chipRest = Color(hex: 0x2A2E37)
 
     static let radius: CGFloat = 20
 
-    static var background: Color { dynamic(light: 0xF3F5F4, dark: 0x0B1220) }
-    static var card: Color { dynamic(light: 0xFFFFFF, dark: 0x151E2E) }
-    static var border: Color { Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.09) : UIColor(hex: 0xE2E8F0) }) }
-    static var ink: Color { dynamic(light: 0x0F172A, dark: 0xF1F5F9) }
-    static var muted: Color { dynamic(light: 0x475569, dark: 0x94A3B8) }
-    static var dangerSoft: Color { Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: 0xB91C1C).withAlphaComponent(0.22) : UIColor(hex: 0xFEE2E2) }) }
-    /// Navy tiles need to stay distinguishable from the dark-mode canvas.
-    static var tileDark: Color { dynamic(light: 0x0F172A, dark: 0x1E293B) }
-    /// Neutral chip on a navy tile (rest / unassigned days).
-    static var chipRest: Color { dynamic(light: 0x1E293B, dark: 0x334155) }
-
-    static func dynamic(light: UInt32, dark: UInt32) -> Color {
-        Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
-    }
+    static func dynamic(light: UInt32, dark: UInt32) -> Color { Color(hex: dark) }
 }
 
 extension UIColor {
@@ -45,7 +55,7 @@ extension Color {
     init(hex: UInt32) { self.init(uiColor: UIColor(hex: hex)) }
 }
 
-/// Flat bento card: white surface, hairline border, 20pt continuous corners, no drop shadow.
+/// Flat dark card: raised surface, hairline border, 20pt continuous corners, no drop shadow.
 struct CardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -67,7 +77,7 @@ struct IconTile: View {
             .font(.title3.weight(.semibold))
             .foregroundStyle(tint)
             .frame(width: size, height: size)
-            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .accessibilityHidden(true)
     }
 }
@@ -75,11 +85,12 @@ struct IconTile: View {
 struct StatusBadge: View {
     let status: RosterStatus
     var body: some View {
+        let tint = status == .approved ? Theme.success : Theme.amber
         Text(status.title)
             .font(.caption.bold())
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .foregroundStyle(status == .approved ? Theme.primary : Theme.amber)
-            .background((status == .approved ? Theme.primary : Theme.amber).opacity(0.14), in: Capsule())
+            .foregroundStyle(tint)
+            .background(tint.opacity(0.14), in: Capsule())
     }
 }
 
@@ -92,11 +103,11 @@ struct PrimaryButtonStyle: ButtonStyle {
             configuration.label
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 52)
-                .foregroundStyle(.white)
-                .background(enabled ? Theme.primary : Color.gray.opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .foregroundStyle(enabled ? Theme.onPrimary : Theme.muted)
+                .background(enabled ? Theme.primary : Theme.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .scaleEffect(configuration.isPressed ? 0.98 : 1)
                 .opacity(configuration.isPressed ? 0.9 : 1)
-                .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+                .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
         }
     }
 }
@@ -108,9 +119,10 @@ struct OutlineButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 50)
             .foregroundStyle(Theme.ink)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.border, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.borderStrong, lineWidth: 1))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -118,24 +130,33 @@ extension ShiftCode {
     var color: Color {
         switch self {
         case .day: return Theme.amber
+        case .evening: return Theme.pink
         case .night: return Theme.indigo
         case .rest: return Color(hex: 0x64748B)
         case .leave: return Color(hex: 0x0EA5E9)
-        case .course: return Color(hex: 0xEC4899)
-        case .empty: return .secondary
+        case .course: return Color(hex: 0x14B8A6)
+        case .empty: return Theme.faint
         }
     }
-    /// Chip colours on navy tiles (week strip): amber day, indigo night, slate otherwise.
+    /// Chip fill on dark tiles (week strip, roster cells).
     var chipBackground: Color {
         switch self {
-        case .day: return Theme.amber
-        case .night: return Theme.indigo
-        case .leave: return Color(hex: 0x0EA5E9)
-        case .course: return Color(hex: 0xEC4899)
         case .rest, .empty: return Theme.chipRest
+        default: return color
         }
     }
-    var chipForeground: Color { self == .day ? Theme.navy : .white }
+    var chipForeground: Color { self == .day ? Theme.onPrimary : .white }
+    var symbol: String {
+        switch self {
+        case .day: return "sun.max.fill"
+        case .evening: return "sunset.fill"
+        case .night: return "moon.stars.fill"
+        case .rest: return "bed.double.fill"
+        case .leave: return "airplane"
+        case .course: return "book.fill"
+        case .empty: return "minus"
+        }
+    }
 }
 
 enum Fmt {
@@ -149,9 +170,13 @@ enum Fmt {
         let d = Calendar.current.date(bySettingHour: hour % 24, minute: 0, second: 0, of: Date()) ?? Date()
         return date(d, "h:mm a")
     }
+    /// "7 ص – 7 م" style range for a shift that starts at `hour` and lasts `length` hours.
+    static func range(start hour: Int, length: Int) -> String {
+        "\(clock(hour)) – \(clock((hour + length) % 24))"
+    }
 }
 
-/// Compact countdown used by the shifts hero: "7:28" under 48h, otherwise whole days.
+/// Compact countdown used by the dial: "7:28" under 48h, otherwise whole days.
 enum Countdown {
     static func parts(until target: Date, from now: Date = Date()) -> (value: String, unit: String?) {
         let secs = max(0, Int(target.timeIntervalSince(now)))
@@ -159,4 +184,34 @@ enum Countdown {
         if h >= 48 { return ("\(h / 24)", L("يوم")) }
         return (String(format: "%d:%02d", h, m), nil)
     }
+}
+
+/// Motion tokens: short ease-out entries, interruptible, and a Reduce-Motion fallback.
+enum Motion {
+    static let entry = Animation.easeOut(duration: 0.28)
+    static let quick = Animation.easeOut(duration: 0.18)
+    static let draw = Animation.easeOut(duration: 0.3)
+    static func entry(_ reduce: Bool) -> Animation? { reduce ? nil : entry }
+    static func quick(_ reduce: Bool) -> Animation? { reduce ? nil : quick }
+}
+
+/// Fades/slides content in once on first appearance (ease-out, under 300ms). Disabled under Reduce Motion.
+struct EntryModifier: ViewModifier {
+    var index: Int = 0
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown || reduce ? 1 : 0)
+            .offset(y: shown || reduce ? 0 : 10)
+            .onAppear {
+                guard !shown else { return }
+                withAnimation(Motion.entry.delay(Double(min(index, 6)) * 0.035)) { shown = true }
+            }
+    }
+}
+
+extension View {
+    /// Staggered ease-out entry; `index` offsets siblings by 35ms each (capped so the last tile still lands under 300ms + stagger).
+    func entry(_ index: Int = 0) -> some View { modifier(EntryModifier(index: index)) }
 }

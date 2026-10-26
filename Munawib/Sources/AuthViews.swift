@@ -63,7 +63,7 @@ struct AuthView: View {
                             Button(L("نسيت كلمة المرور؟")) { showForgot = true }.font(.footnote.weight(.semibold))
                         }
                     }
-                    .animation(.snappy, value: isEmployeeNumber)
+                    .animation(Motion.entry, value: isEmployeeNumber)
 
                     if let error {
                         VStack(alignment: .leading, spacing: DS.s) {
@@ -76,7 +76,7 @@ struct AuthView: View {
                     }
 
                     Button { Task { await submit() } } label: {
-                        HStack(spacing: DS.s) { if busy { ProgressView().tint(.white) }; Text(busy ? L("جارٍ الدخول…") : L("تسجيل الدخول")) }
+                        HStack(spacing: DS.s) { if busy { ProgressView().tint(Theme.onPrimary) }; Text(busy ? L("جارٍ الدخول…") : L("تسجيل الدخول")) }
                     }
                     .buttonStyle(PrimaryButtonStyle()).disabled(busy || !valid)
 
@@ -127,11 +127,11 @@ struct AuthView: View {
 
     private var header: some View {
         VStack(spacing: DS.s) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 34, weight: .semibold)).foregroundStyle(.white)
+            Image(systemName: "circle.circle")
+                .font(.system(size: 34, weight: .semibold)).foregroundStyle(Theme.onPrimary)
                 .frame(width: 76, height: 76)
-                .background(LinearGradient(colors: [Theme.primaryLight, Theme.primary], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: Theme.primary.opacity(0.3), radius: 12, y: 6)
+                .background(Theme.primary, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: Theme.primary.opacity(0.35), radius: 14, y: 6)
                 .accessibilityHidden(true)
             Text(L("مِناوب")).font(.largeTitle.bold())
             Text(L("سجّل الدخول لمتابعة مناوباتك وتنبيهات فريقك")).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -153,7 +153,7 @@ struct AuthView: View {
             Haptics.success()
         } catch {
             let e = error as? APIError
-            withAnimation(.snappy) {
+            withAnimation(Motion.entry) {
                 errorIsActivation = e?.message == "account not activated"
                 self.error = e?.errorDescription ?? L("تعذّر الاتصال بالخادم")
             }
@@ -195,7 +195,7 @@ struct SignupWizard: View {
                         DSField(icon: "person.badge.shield.checkmark", placeholder: L("اسم رئيسة التمريض"), text: $hnName)
                         DSField(icon: "number", placeholder: L("رقمها الوظيفي"), text: $hnNumber, ltr: true, numeric: true, id: "signup.hnNumber")
                     }
-                    Button(L("التالي")) { withAnimation(.snappy) { step = 2 } }.buttonStyle(PrimaryButtonStyle()).disabled(hospital.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button(L("التالي")) { withAnimation(Motion.entry) { step = 2 } }.buttonStyle(PrimaryButtonStyle()).disabled(hospital.trimmingCharacters(in: .whitespaces).isEmpty)
                 } else {
                     VStack(spacing: DS.m) {
                         DSField(icon: "person", placeholder: L("اسمك"), text: $name, contentType: .name, id: "signup.name")
@@ -204,10 +204,10 @@ struct SignupWizard: View {
                         DSSecureField(placeholder: L("كلمة المرور (8 أحرف على الأقل)"), text: $password)
                     }
                     if let error { Label(error, systemImage: "exclamationmark.circle.fill").font(.subheadline).foregroundStyle(.red) }
-                    Button { Task { await submit() } } label: { HStack { if busy { ProgressView().tint(.white) }; Text(L("إنشاء المستشفى")) } }
+                    Button { Task { await submit() } } label: { HStack { if busy { ProgressView().tint(Theme.onPrimary) }; Text(L("إنشاء المستشفى")) } }
                         .buttonStyle(PrimaryButtonStyle())
                         .disabled(busy || name.isEmpty || !email.contains("@") || password.count < 8)
-                    Button(L("رجوع")) { withAnimation(.snappy) { step = 1 } }.frame(maxWidth: .infinity)
+                    Button(L("رجوع")) { withAnimation(Motion.entry) { step = 1 } }.frame(maxWidth: .infinity)
                 }
             }
             .padding(DS.l).frame(maxWidth: 520).frame(maxWidth: .infinity)
@@ -251,7 +251,7 @@ struct ActivateView: View {
                     DSField(icon: "envelope", placeholder: L("البريد الإلكتروني (اختياري)"), text: $email, ltr: true, keyboard: .emailAddress, id: "activate.email")
                 }
                 if let error { Label(error, systemImage: "exclamationmark.circle.fill").font(.subheadline).foregroundStyle(.red) }
-                Button { Task { await submit() } } label: { HStack { if busy { ProgressView().tint(.white) }; Text(L("تفعيل والدخول")) } }
+                Button { Task { await submit() } } label: { HStack { if busy { ProgressView().tint(Theme.onPrimary) }; Text(L("تفعيل والدخول")) } }
                     .buttonStyle(PrimaryButtonStyle()).disabled(busy || code.count < 4 || password.count < 8)
                 Text(L("بعد التفعيل تدخل لاحقًا برقمك الوظيفي ورمز المستشفى وكلمة المرور.")).font(.footnote).foregroundStyle(.secondary)
             }
@@ -351,8 +351,8 @@ struct HospitalInfoCard: View {
         .card()
         .overlay(alignment: .top) {
             if let copied {
-                Label(L("تم النسخ: %@", "\(copied)"), systemImage: "checkmark.circle.fill").font(.footnote.bold()).foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 8).background(Theme.navy, in: Capsule())
+                Label(L("تم النسخ: %@", "\(copied)"), systemImage: "checkmark.circle.fill").font(.footnote.bold()).foregroundStyle(Theme.ink)
+                    .padding(.horizontal, 14).padding(.vertical, 8).background(Theme.surfaceRaised, in: Capsule()).overlay(Capsule().stroke(Theme.borderStrong, lineWidth: 1))
                     .transition(.move(edge: .top).combined(with: .opacity)).offset(y: -12)
             }
         }
@@ -365,7 +365,7 @@ struct HospitalInfoCard: View {
             if copy {
                 Button {
                     UIPasteboard.general.string = value; Haptics.success()
-                    withAnimation(.snappy) { copied = title }
+                    withAnimation(Motion.entry) { copied = title }
                     Task { try? await Task.sleep(for: .seconds(1.6)); withAnimation { if copied == title { copied = nil } } }
                 } label: { Image(systemName: "doc.on.doc").frame(width: 44, height: 44) }
                 .accessibilityLabel(L("نسخ %@", "\(title)"))

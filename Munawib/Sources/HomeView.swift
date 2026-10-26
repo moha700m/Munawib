@@ -141,7 +141,7 @@ struct DepartmentBento: View {
                 }
                 Spacer(minLength: 4)
                 Button { store.currentMonth = gap.date; screen = .roster } label: {
-                    Text(L("سدّ النقص")).font(.footnote.bold()).foregroundStyle(.white)
+                    Text(L("سدّ النقص")).font(.footnote.bold()).foregroundStyle(Theme.onPrimary)
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         .background(Theme.danger, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
@@ -175,20 +175,111 @@ struct DepartmentBento: View {
     }
 }
 
+/// «مدار يومك»: the 24-hour dial with the countdown, three stat tiles, the paper-roster camera card and the next
+/// few shifts. Managers additionally get the department block and roster status underneath.
 struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Binding var screen: Screen
     @Binding var sheet: ActiveSheet?
     @State private var approving = false
+    private var session: Session { Session.shared }
 
     var body: some View {
         VStack(spacing: Bento.gap) {
-            DepartmentBento(screen: $screen, sheet: $sheet)
-            if Session.shared.syncing && Session.shared.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }
-            statusCard
-            dailyAlerts
-            eventsCard
-            shortcuts
+            DialHero().entry(0)
+            statTiles.entry(1)
+            photoCard.entry(2)
+            if session.syncing && session.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }
+            upcomingPreview.entry(3)
+            if session.isManager {
+                DepartmentBento(screen: $screen, sheet: $sheet).entry(4)
+                statusCard.entry(5)
+                eventsCard.entry(6)
+            }
+        }
+    }
+
+    // MARK: Stat tiles
+
+    private var statTiles: some View {
+        let me = store.myEmployee
+        let hours = me.map { store.rosterHours(for: $0.id) } ?? 0
+        let count = me.map { store.rosterShiftCount(for: $0.id) } ?? 0
+        let pending = store.myPendingRequests
+        return BentoRow { col in
+            statTile(caption: L("ساعات الشهر"), value: "\(hours)", footnote: count == 1 ? L("مناوبة واحدة") : L("%@ مناوبة", "\(count)"), tint: Theme.amber, symbol: "clock") { screen = .myShifts }
+                .frame(width: col)
+            statTile(caption: L("الطلبات"), value: pending.map { "\($0)" } ?? "—", footnote: pending == nil ? L("يتطلب حسابًا") : L("قيد الانتظار"), tint: Theme.pink, symbol: "arrow.left.arrow.right") { screen = .requests }
+                .frame(width: col)
+            statTile(caption: L("القسم"), value: Dept.display(store.data.selectedDepartment), footnote: store.data.settings.hospital, tint: Theme.indigo, symbol: "building.2", small: true) { screen = .roster }
+                .frame(width: Bento.span(2, col: col))
+        }
+    }
+
+    private func statTile(caption: String, value: String, footnote: String, tint: Color, symbol: String, small: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(caption).bentoCaption()
+                    Spacer(minLength: 2)
+                    Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(tint).accessibilityHidden(true)
+                }
+                Text(value).font(small ? Bento.small : Bento.value).monospacedDigit().lineLimit(small ? 2 : 1).minimumScaleFactor(0.5)
+                    .foregroundStyle(Theme.ink).multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+                Text(footnote).bentoCaption()
+            }
+            .bentoTile(.light, rows: 1)
+        }
+        .buttonStyle(BentoPressStyle())
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Camera card
+
+    private var photoCard: some View {
+        Button { sheet = .importRoster } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.primary)
+                    Image(systemName: "camera.viewfinder").font(.system(size: 26, weight: .semibold)).foregroundStyle(Theme.onPrimary)
+                }
+                .frame(width: 58, height: 58)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("صوّر الجدول الورقي")).font(.headline).foregroundStyle(Theme.ink)
+                    Text(L("نقرأ التواريخ والمناوبات من الصورة ونعرضها لك للمراجعة قبل الحفظ."))
+                        .font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.backward").font(.footnote.weight(.bold)).foregroundStyle(Theme.faint).accessibilityHidden(true)
+            }
+            .card()
+        }
+        .buttonStyle(BentoPressStyle())
+        .accessibilityIdentifier("home.photoRoster")
+    }
+
+    // MARK: Upcoming
+
+    @ViewBuilder private var upcomingPreview: some View {
+        if let me = store.myEmployee {
+            let shifts = Array(store.upcomingShifts(for: me.id).filter { $0.0 > Date() }.prefix(3))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(L("القادمة")).font(.title3.weight(.heavy)).foregroundStyle(Theme.ink)
+                    Spacer()
+                    Button(L("كل مناوباتي")) { screen = .myShifts }.font(.subheadline.weight(.semibold)).foregroundStyle(Theme.primary)
+                }
+                if shifts.isEmpty {
+                    Text(L("لا توجد مناوبات قادمة. صوّر الجدول الورقي أو انتظر رفع جدول القسم.")).font(.footnote).foregroundStyle(Theme.muted)
+                }
+                ForEach(shifts, id: \.0) { sh in
+                    ShiftRow(date: sh.0, code: sh.1, hours: store.data.settings.shiftLength)
+                    if sh.0 != shifts.last?.0 { Divider().overlay(Theme.border) }
+                }
+            }
+            .card()
         }
     }
 
@@ -238,41 +329,6 @@ struct HomeView: View {
             .fixedSize()
     }
 
-    private var dailyAlerts: some View {
-        let s = store.data.settings
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(L("مواعيد ثابتة")).bentoCaption()
-                    Text(L("التنبيهات اليومية")).font(.title3.weight(.heavy))
-                }
-                Spacer()
-                Image(systemName: "alarm").foregroundStyle(Theme.primary).font(.title2)
-            }
-            shiftRow(.day, L("الشفت النهاري"), hour: s.dayStartHour)
-            Divider()
-            shiftRow(.night, L("الشفت الليلي"), hour: s.nightStartHour)
-            Label(L("التذكير قبل بداية الشفت بـ %@ دقيقة بعد تفعيل التنبيهات واعتماد الجدول.", "\(s.reminderMinutesBefore)"), systemImage: "checkmark.shield")
-                .font(.caption).foregroundStyle(Theme.muted)
-        }
-        .card()
-    }
-
-    private func shiftRow(_ c: ShiftCode, _ title: String, hour: Int) -> some View {
-        HStack {
-            Text(c.rawValue).font(.headline).foregroundStyle(c.chipForeground)
-                .frame(width: 40, height: 40).background(c.chipBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            VStack(alignment: .leading) {
-                Text(title).font(.headline)
-                Text(L("%1$@ %2$@ · %3$@ ساعة", "\(c.title)", "\(hour12(hour))", "\(store.data.settings.shiftLength)")).font(.caption).foregroundStyle(Theme.muted)
-            }
-            Spacer()
-            Text("\(hour % 12 == 0 ? 12 : hour % 12):00").font(Bento.value).monospacedDigit()
-        }
-    }
-
-    private func hour12(_ h: Int) -> String { "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? L("صباحًا") : L("مساءً"))" }
-
     private var eventsCard: some View {
         let upcoming = store.data.events.filter { $0.date > Date().addingTimeInterval(-86400) }.sorted { $0.date < $1.date }.prefix(3)
         return VStack(alignment: .leading, spacing: 12) {
@@ -291,33 +347,6 @@ struct HomeView: View {
             ForEach(Array(upcoming)) { EventRow(event: $0) }
         }
         .card()
-    }
-
-    private var shortcuts: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L("إجراء سريع")).bentoCaption()
-            Text(L("اختصارات")).font(.title3.weight(.heavy))
-            shortcut(L("رفع صورة أو PDF"), L("يقرأ النظام الجدول من الصورة ثم يعرضه للمراجعة."), "doc.viewfinder") { sheet = .importRoster }
-            shortcut(L("إضافة موظف"), L("دعوة مرتبطة بالرقم الوظيفي"), "person.badge.plus") { sheet = .addEmployee }
-            shortcut(L("سجل الإرسال"), L("الرسائل والتنبيهات"), "paperplane") { screen = .alerts }
-        }
-        .card()
-    }
-
-    private func shortcut(_ t: String, _ d: String, _ s: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: s).foregroundStyle(Theme.primary).frame(width: 30)
-                VStack(alignment: .leading) {
-                    Text(t).font(.headline).foregroundStyle(Theme.ink)
-                    Text(d).font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.leading)
-                }
-                Spacer()
-            }
-            .padding()
-            .background(Theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .buttonStyle(BentoPressStyle())
     }
 }
 
