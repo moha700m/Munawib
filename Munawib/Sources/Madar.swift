@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - 24-hour dial
+// MARK: - 12-hour dial
 
-/// One coloured band on the dial, in hours of the day; may wrap past midnight.
+/// One coloured band on the dial, in hours of the day (0…24); may wrap past midnight.
 struct DialArc: Identifiable {
     let code: ShiftCode
     let start: Double
@@ -11,48 +11,51 @@ struct DialArc: Identifiable {
     var id: String { "\(code.rawValue)-\(start)-\(emphasized)" }
 }
 
-/// Circular 24-hour clock: midnight at the top, hours clockwise. Shift windows are drawn as arcs
-/// (amber day, pink evening, indigo night); the emphasized arc draws itself once on first appearance.
+/// A normal 12-hour clock face (12 at the top, hours clockwise) with two concentric tracks:
+/// the outer track is the morning half of the day (ص, 00:00–12:00) and the inner track the
+/// afternoon/night half (م, 12:00–24:00). A 12-hour shift therefore reads as one spiral — day
+/// starts on the outer track at 5 and ends on the inner track at 5 — so AM/PM is never ambiguous.
+/// The emphasized arc (current or next shift) draws itself once on first appearance.
 struct MadarDial<Center: View>: View {
     let arcs: [DialArc]
     let now: Date
-    var size: CGFloat = 236
-    var lineWidth: CGFloat = 16
+    var size: CGFloat = 250
+    var lineWidth: CGFloat = 13
     @ViewBuilder let center: () -> Center
 
     @State private var progress: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.layoutDirection) private var direction
 
-    private struct Segment: Identifiable {
+    private let trackGap: CGFloat = 4
+
+    /// One piece of an arc on a single track, as fractions of the 12-hour circle.
+    private struct Piece: Identifiable {
         let id: Int
+        let track: Int      // 0 = outer (AM), 1 = inner (PM)
         let from: CGFloat
         let to: CGFloat
     }
 
+    private var outerRadius: CGFloat { size / 2 - lineWidth / 2 }
+    private var innerRadius: CGFloat { outerRadius - lineWidth - trackGap }
+    private var tickRadius: CGFloat { innerRadius - lineWidth / 2 - 8 }
+    private var labelRadius: CGFloat { tickRadius - 8 }
+
     var body: some View {
-        let radius = size / 2 - lineWidth / 2
         ZStack {
-            Circle().stroke(Theme.track, lineWidth: lineWidth).padding(lineWidth / 2)
-            ForEach(0..<24, id: \.self) { h in
-                Capsule()
-                    .fill(h % 6 == 0 ? Theme.muted : Theme.borderStrong)
-                    .frame(width: h % 6 == 0 ? 2 : 1, height: h % 6 == 0 ? 9 : 5)
-                    .offset(y: -(radius - lineWidth / 2 - 10))
-                    .rotationEffect(.degrees(Double(h) * 15))
-            }
-            ForEach(arcs.filter { !$0.emphasized }) { arc in band(arc, radius: radius, drawn: 1) }
-            ForEach(arcs.filter(\.emphasized)) { arc in band(arc, radius: radius, drawn: progress) }
-            Circle()
-                .fill(Theme.ink)
-                .frame(width: 9, height: 9)
-                .overlay(Circle().stroke(Theme.background, lineWidth: 2))
-                .offset(y: -radius)
-                .rotationEffect(.degrees(hourAngle(now)))
-            hourLabels(radius: radius)
+            track(radius: outerRadius)
+            track(radius: innerRadius)
+            ForEach(arcs.filter { !$0.emphasized }) { arc in band(arc, drawn: 1) }
+            ForEach(arcs.filter(\.emphasized)) { arc in band(arc, drawn: progress) }
+            ticks
+            hourLabels
+            periodBadge(radius: outerRadius, pm: false)
+            periodBadge(radius: innerRadius, pm: true)
+            nowMarker
             center()
                 .environment(\.layoutDirection, direction)
-                .frame(width: size - lineWidth * 2 - 36)
+                .frame(width: (labelRadius - 10) * 2)
         }
         .frame(width: size, height: size)
         .environment(\.layoutDirection, .leftToRight)
@@ -62,39 +65,90 @@ struct MadarDial<Center: View>: View {
         }
     }
 
-    private func hourAngle(_ d: Date) -> Double {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
-        return (Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60) * 15
+    // MARK: Pieces
+
+    private func track(radius: CGFloat) -> some View {
+        Circle().stroke(Theme.track, lineWidth: lineWidth).frame(width: radius * 2, height: radius * 2)
     }
 
-    private func hourLabels(radius: CGFloat) -> some View {
-        let inset = radius - lineWidth / 2 - 26
-        return ZStack {
-            Text("24").offset(y: -inset)
-            Text("6").offset(x: inset)
-            Text("12").offset(y: inset)
-            Text("18").offset(x: -inset)
+    private var ticks: some View {
+        ForEach(0..<12, id: \.self) { h in
+            let major = h % 3 == 0
+            Capsule()
+                .fill(major ? Theme.muted : Theme.borderStrong)
+                .frame(width: major ? 2 : 1, height: major ? 7 : 5)
+                .offset(y: -tickRadius)
+                .rotationEffect(.degrees(Double(h) * 30))
+        }
+    }
+
+    private var hourLabels: some View {
+        ZStack {
+            Text("12").offset(y: -labelRadius)
+            Text("3").offset(x: labelRadius)
+            Text("6").offset(y: labelRadius)
+            Text("9").offset(x: -labelRadius)
         }
         .font(.caption2.weight(.semibold)).monospacedDigit()
         .foregroundStyle(Theme.faint)
     }
 
-    private func segments(_ arc: DialArc, drawn: CGFloat) -> [Segment] {
-        let f0 = CGFloat(arc.start / 24), total = CGFloat(arc.length / 24)
-        let end = f0 + total * drawn
-        if end <= 1 { return [Segment(id: 0, from: f0, to: end)] }
-        return [Segment(id: 0, from: f0, to: 1), Segment(id: 1, from: 0, to: end - 1)]
+    /// Small ص / م pill sitting on the track at the 11 o'clock position so each ring names its half of the day.
+    private func periodBadge(radius: CGFloat, pm: Bool) -> some View {
+        let f = DateFormatter(); f.locale = Fmt.ar
+        let text = pm ? f.pmSymbol ?? "PM" : f.amSymbol ?? "AM"
+        return Text(text)
+            .font(.system(size: 9, weight: .bold)).monospacedDigit()
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .background(Theme.card, in: Capsule())
+            .overlay(Capsule().stroke(Theme.borderStrong, lineWidth: 1))
+            .offset(y: -radius)
+            .rotationEffect(.degrees(-45))
+            .accessibilityHidden(true)
     }
 
-    @ViewBuilder private func band(_ arc: DialArc, radius: CGFloat, drawn: CGFloat) -> some View {
-        ForEach(segments(arc, drawn: drawn)) { seg in
+    private var nowMarker: some View {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: now)
+        let hour = Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60
+        let pm = hour >= 12
+        return Circle()
+            .fill(Theme.ink)
+            .frame(width: 9, height: 9)
+            .overlay(Circle().stroke(Theme.background, lineWidth: 2))
+            .offset(y: -(pm ? innerRadius : outerRadius))
+            .rotationEffect(.degrees(hour.truncatingRemainder(dividingBy: 12) * 30))
+    }
+
+    /// Splits a window of `length` hours starting at `start` (24h clock) into pieces on the AM / PM tracks,
+    /// cutting at noon and midnight. Pieces are in time order so a partially `drawn` arc grows forward.
+    private func pieces(start: Double, length: Double) -> [Piece] {
+        var out: [Piece] = []
+        var s = start.truncatingRemainder(dividingBy: 24); if s < 0 { s += 24 }
+        var remaining = min(max(0, length), 24)
+        var i = 0
+        while remaining > 0.0001 && i < 6 {
+            let track = Int(floor(s / 12)) % 2
+            let trackEnd = Double(track + 1) * 12
+            let e = min(trackEnd, s + remaining)
+            out.append(Piece(id: i, track: track, from: CGFloat((s - Double(track) * 12) / 12), to: CGFloat((e - Double(track) * 12) / 12)))
+            remaining -= (e - s)
+            s = e >= 24 ? 0 : e
+            i += 1
+        }
+        return out
+    }
+
+    @ViewBuilder private func band(_ arc: DialArc, drawn: CGFloat) -> some View {
+        ForEach(pieces(start: arc.start, length: arc.length * Double(drawn))) { piece in
+            let r = piece.track == 0 ? outerRadius : innerRadius
             Circle()
-                .trim(from: seg.from, to: seg.to)
-                .stroke(arc.code.color.opacity(arc.emphasized ? 1 : 0.22),
-                        style: StrokeStyle(lineWidth: arc.emphasized ? lineWidth : lineWidth - 6, lineCap: .round))
-                .padding(lineWidth / 2)
+                .trim(from: piece.from, to: piece.to)
+                .stroke(arc.code.color.opacity(arc.emphasized ? 1 : 0.2),
+                        style: StrokeStyle(lineWidth: arc.emphasized ? lineWidth : lineWidth - 5, lineCap: .round))
+                .frame(width: r * 2, height: r * 2)
                 .rotationEffect(.degrees(-90))
-                .shadow(color: arc.emphasized ? arc.code.color.opacity(0.45) : .clear, radius: 10)
+                .shadow(color: arc.emphasized ? arc.code.color.opacity(0.4) : .clear, radius: 8)
         }
     }
 }
@@ -127,14 +181,14 @@ struct DialHero: View {
             let cd = next.map { Countdown.parts(until: current != nil ? $0.0.addingTimeInterval(len) : $0.0, from: now) }
 
             VStack(spacing: 14) {
-                MadarDial(arcs: arcs, now: now, size: compact ? 200 : 236) {
+                MadarDial(arcs: arcs, now: now, size: compact ? 216 : 250) {
                     VStack(spacing: 4) {
                         if let n = next, let cd {
                             Text(current != nil ? L("تنتهي بعد") : L("المناوبة القادمة بعد"))
                                 .font(.caption).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.7)
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(cd.value)
-                                    .font(.system(size: compact ? 40 : 48, weight: .heavy, design: .rounded))
+                                    .font(.system(size: compact ? 34 : 42, weight: .heavy, design: .rounded))
                                     .monospacedDigit()
                                     .foregroundStyle(n.1.color)
                                     .contentTransition(reduce ? ContentTransition.identity : ContentTransition.numericText(countsDown: true))
@@ -158,6 +212,7 @@ struct DialHero: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(L("مدار يومك"))
+                .accessibilityHint(L("الحلقة الخارجية صباحًا والداخلية مساءً"))
                 .accessibilityValue(accessibilityValue(next: next, current: current != nil, cd: cd))
 
                 HStack(spacing: 14) {
