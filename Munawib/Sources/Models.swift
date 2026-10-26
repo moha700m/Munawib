@@ -1,11 +1,12 @@
 import Foundation
 
 enum ShiftCode: String, Codable, CaseIterable, Identifiable {
-    case day = "D", night = "N", rest = "R", leave = "L", course = "C", empty = ""
+    case day = "D", evening = "E", night = "N", rest = "R", leave = "L", course = "C", empty = ""
     var id: String { rawValue }
     var title: String {
         switch self {
         case .day: return L("نهاري")
+        case .evening: return L("مسائي")
         case .night: return L("ليلي")
         case .rest: return L("راحة")
         case .leave: return L("إجازة")
@@ -14,6 +15,8 @@ enum ShiftCode: String, Codable, CaseIterable, Identifiable {
         }
     }
     var label: String { self == .empty ? "—" : rawValue }
+    /// Day, evening and night are the codes that put someone on duty (hours, reminders, countdown).
+    var isWorking: Bool { self == .day || self == .evening || self == .night }
 }
 
 struct Employee: Codable, Identifiable, Hashable {
@@ -96,6 +99,22 @@ struct AppSettings: Codable {
     var reminderMinutesBefore: Int = 60
     var notificationsEnabled: Bool = false
     var loggedInEmployeeNumber: String? = nil
+    /// Optional so settings saved by earlier builds still decode; see `eveningStart`.
+    var eveningStartHour: Int? = nil
+
+    var eveningStart: Int {
+        get { eveningStartHour ?? 13 }
+        set { eveningStartHour = newValue }
+    }
+    /// Start hour of a working code, nil for rest / leave / course / empty.
+    func startHour(_ code: ShiftCode) -> Int? {
+        switch code {
+        case .day: return dayStartHour
+        case .evening: return eveningStart
+        case .night: return nightStartHour
+        default: return nil
+        }
+    }
 }
 
 struct AppData: Codable {

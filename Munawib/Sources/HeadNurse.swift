@@ -5,7 +5,7 @@ struct RoleBadge: View {
     var body: some View {
         if !title.isEmpty {
             Text(title).font(.caption2.bold()).lineLimit(1).minimumScaleFactor(0.7).fixedSize(horizontal: true, vertical: false).padding(.horizontal, 8).padding(.vertical, 4)
-                .foregroundStyle(.white).background(Theme.primary, in: Capsule())
+                .foregroundStyle(Theme.onPrimary).background(Theme.primary, in: Capsule())
                 .accessibilityLabel(L("الدور: %@", "\(title)"))
         }
     }
@@ -30,7 +30,8 @@ struct HeadNurseDashboard: View {
                     ShareLink(item: info) { Label(L("مشاركة"), systemImage: "square.and.arrow.up") }
                 }.card()
             }
-            DepartmentBento(screen: $screen, sheet: $sheet)
+            DialHero(compact: true).entry(0)
+            DepartmentBento(screen: $screen, sheet: $sheet).entry(1)
             BentoRow { col in
                 BentoStat(caption: L("تغطية اليوم"), value: "D\(today.day) · N\(today.night)", footnote: L("الحد الأدنى D%1$@ · N%2$@", "\(minD)", "\(minN)"), valueFont: Bento.small)
                     .frame(width: Bento.span(2, col: col))

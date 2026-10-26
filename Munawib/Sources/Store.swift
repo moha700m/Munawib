@@ -44,11 +44,14 @@ final class AppStore {
     func selectDepartment(_ d: String) { data.selectedDepartment = d; _ = rosterIndex }
 
     // MARK: Roster
-    var rosterIndex: Int {
-        if let i = data.rosters.firstIndex(where: { $0.year == year && $0.month == month && $0.department == data.selectedDepartment }) {
+    var rosterIndex: Int { rosterIndex(year: year, month: month) }
+
+    /// Index of the selected department's roster for any month, creating an empty one when missing.
+    func rosterIndex(year y: Int, month m: Int) -> Int {
+        if let i = data.rosters.firstIndex(where: { $0.year == y && $0.month == m && $0.department == data.selectedDepartment }) {
             return i
         }
-        var r = Roster(year: year, month: month, department: data.selectedDepartment)
+        var r = Roster(year: y, month: m, department: data.selectedDepartment)
         r.entries = departmentEmployees.map { RosterEntry(employeeID: $0.id, codes: [:]) }
         data.rosters.append(r)
         return data.rosters.count - 1
@@ -71,9 +74,9 @@ final class AppStore {
     }
 
     func cycle(emp: UUID, day: Int) {
-        let order: [ShiftCode] = [.day, .night, .rest, .leave, .course, .empty]
+        let order: [ShiftCode] = [.day, .evening, .night, .rest, .leave, .course, .empty]
         let cur = code(for: emp, day: day)
-        let next = order[((order.firstIndex(of: cur) ?? 5) + 1) % order.count]
+        let next = order[((order.firstIndex(of: cur) ?? (order.count - 1)) + 1) % order.count]
         setCode(next, emp: emp, day: day)
     }
 
@@ -97,6 +100,30 @@ final class AppStore {
         data.rosters[i].status = .draft
         data.rosters[i].source = source
         log(L("رفع جدول"), source)
+    }
+
+    /// Writes dated shifts (from the photo import review) into one employee's rows, across whichever months they fall in.
+    /// Returns the number of cells written.
+    @discardableResult
+    func applyShifts(_ shifts: [ParsedShift], for emp: UUID, source: String) -> Int {
+        let cal = Calendar.current
+        var touched = Set<Int>()
+        var n = 0
+        for s in shifts {
+            let y = cal.component(.year, from: s.date), m = cal.component(.month, from: s.date), d = cal.component(.day, from: s.date)
+            let i = rosterIndex(year: y, month: m)
+            if let e = data.rosters[i].entries.firstIndex(where: { $0.employeeID == emp }) {
+                data.rosters[i].entries[e].codes["\(d)"] = s.code
+            } else {
+                data.rosters[i].entries.append(RosterEntry(employeeID: emp, codes: ["\(d)": s.code]))
+            }
+            touched.insert(i); n += 1
+        }
+        // A month that only exists because of this import is the paper roster itself: mark it approved so
+        // reminders (which only consider approved rosters) are scheduled for the imported shifts.
+        for i in touched where data.rosters[i].source == nil { data.rosters[i].source = source; data.rosters[i].status = .approved }
+        if n > 0 { log(L("قراءة الجدول من صورة"), L("%@ مناوبة", "\(n)")) }
+        return n
     }
 
     // MARK: Notifications
@@ -138,7 +165,7 @@ final class AppStore {
 
     func rosterHours(for emp: UUID) -> Int {
         var n = 0
-        for d in 1...daysInMonth { let c = code(for: emp, day: d); if c == .day || c == .night { n += data.settings.shiftLength } }
+        for d in 1...daysInMonth where code(for: emp, day: d).isWorking { n += data.settings.shiftLength }
         return n
     }
 

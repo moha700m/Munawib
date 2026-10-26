@@ -75,7 +75,7 @@ struct ProfileCard: View {
                     else { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(Theme.primary.opacity(0.6)) }
                 }
                 .frame(width: 64, height: 64).clipShape(Circle())
-                .overlay(alignment: .bottomTrailing) { Image(systemName: "camera.circle.fill").foregroundStyle(Theme.primary).background(.white, in: Circle()) }
+                .overlay(alignment: .bottomTrailing) { Image(systemName: "camera.circle.fill").foregroundStyle(Theme.primary).background(Theme.card, in: Circle()) }
             }
             .accessibilityLabel(L("تغيير الصورة الشخصية"))
             VStack(alignment: .leading, spacing: 4) {
@@ -107,8 +107,8 @@ extension AppStore {
         return data.employees.first { $0.employeeNumber == data.settings.loggedInEmployeeNumber }
     }
     func shiftStart(year: Int, month: Int, day: Int, code: ShiftCode) -> Date? {
-        guard code == .day || code == .night else { return nil }
-        return Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: code == .day ? data.settings.dayStartHour : data.settings.nightStartHour))
+        guard let hour = data.settings.startHour(code) else { return nil }
+        return Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: hour))
     }
     /// All upcoming shifts for an employee across approved/any rosters.
     func upcomingShifts(for emp: UUID, includeDrafts: Bool = true) -> [(Date, ShiftCode)] {
@@ -155,7 +155,14 @@ extension AppStore {
     }
     /// Number of day/night shifts rostered for an employee in the current month.
     func rosterShiftCount(for emp: UUID) -> Int {
-        (1...daysInMonth).filter { let c = code(for: emp, day: $0); return c == .day || c == .night }.count
+        (1...daysInMonth).filter { code(for: emp, day: $0).isWorking }.count
+    }
+    /// Pending leave/swap requests that involve the signed-in user (nil when offline).
+    var myPendingRequests: Int? {
+        guard Session.shared.online, let me = Session.shared.me, let r = Session.shared.remote else { return nil }
+        let leaves = r.leaves.filter { $0.user_id == me.id && $0.status == "pending" }.count
+        let swaps = r.swaps.filter { ($0.from_user == me.id || $0.to_user == me.id) && $0.status == "pending" }.count
+        return leaves + swaps
     }
     /// Next date (within `days`) where the employee has the given code.
     func nextDate(for emp: UUID, code target: ShiftCode, days: Int = 60) -> Date? {
@@ -276,8 +283,8 @@ struct MyShiftsView: View {
             if let me = store.myEmployee {
                 let shifts = store.upcomingShifts(for: me.id)
                 let s = store.data.settings
-                NextShiftHero()
-                weekStrip(me)
+                DialHero(compact: true).entry(0)
+                weekStrip(me).entry(1)
                 BentoRow { col in
                     BentoStat(caption: L("ساعات الشهر"), value: "\(store.rosterHours(for: me.id))")
                         .frame(width: Bento.span(2, col: col))
@@ -305,23 +312,25 @@ struct MyShiftsView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack { Text(L("مناوباتي القادمة")).font(.title3.weight(.heavy)); Spacer(); Text("\(shifts.count)").font(.headline).monospacedDigit().foregroundStyle(Theme.muted) }
-                    if shifts.isEmpty { ContentUnavailableView(L("لا توجد مناوبات"), systemImage: "calendar.badge.exclamationmark", description: Text(L("ستظهر هنا بعد رفع الجدول."))) }
-                    ForEach(shifts.prefix(40), id: \.0) { sh in
+                    if shifts.isEmpty { ContentUnavailableView(L("لا توجد مناوبات"), systemImage: "calendar.badge.exclamationmark", description: Text(L("ستظهر هنا بعد رفع الجدول أو تصوير الجدول الورقي."))) }
+                    ForEach(monthGroups(shifts.prefix(60)), id: \.key) { group in
                         HStack {
-                            Text(sh.1.label).font(.headline).frame(width: 36, height: 36)
-                                .background(sh.1.chipBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous)).foregroundStyle(sh.1.chipForeground)
-                            VStack(alignment: .leading) {
-                                Text(Fmt.date(sh.0, "EEEE d MMMM")).font(.subheadline.bold())
-                                Text(L("%1$@ · %2$@ ساعة", "\(Fmt.date(sh.0, "h:mm a"))", "\(s.shiftLength)")).font(.caption).foregroundStyle(Theme.muted)
-                            }
+                            Text(group.title).font(.caption.weight(.bold)).foregroundStyle(Theme.muted)
                             Spacer()
+                            Text(L("%1$@ مناوبة · %2$@ ساعة", "\(group.shifts.count)", "\(group.shifts.count * s.shiftLength)")).font(.caption).foregroundStyle(Theme.faint).monospacedDigit()
                         }
-                        Divider()
+                        .padding(.top, 6)
+                        ForEach(group.shifts, id: \.0) { sh in
+                            ShiftRow(date: sh.0, code: sh.1, hours: s.shiftLength)
+                            if sh.0 != group.shifts.last?.0 { Divider().overlay(Theme.border) }
+                        }
                     }
                     Button { Task { exportMsg = await CalendarExport.add(shifts: shifts, hours: s.shiftLength) } } label: { Label(L("إضافة للتقويم"), systemImage: "calendar.badge.plus") }
                         .buttonStyle(OutlineButtonStyle()).disabled(shifts.isEmpty)
                     if let exportMsg { Text(exportMsg).font(.footnote).foregroundStyle(Theme.muted) }
-                }.card()
+                }
+                .card()
+                .entry(2)
             } else {
                 ContentUnavailableView(L("لم يتم ربط حسابك بموظف"), systemImage: "person.crop.circle.badge.questionmark", description: Text(L("سجّل الدخول برقمك الوظيفي وكلمة المرور، أو فعّل حسابك بكود الدعوة.")))
                     .card()
@@ -330,7 +339,24 @@ struct MyShiftsView: View {
         .sheet(isPresented: $showSwap) { SwapForm() }
     }
 
-    /// Seven navy chips for today and the next six days, coloured by shift code; today is ringed.
+    private struct MonthGroup { let key: Int; let title: String; let shifts: [(Date, ShiftCode)] }
+
+    /// Upcoming shifts bucketed by calendar month, in order.
+    private func monthGroups<S: Sequence>(_ shifts: S) -> [MonthGroup] where S.Element == (Date, ShiftCode) {
+        let cal = Calendar.current
+        var out: [MonthGroup] = []
+        for sh in shifts {
+            let k = cal.component(.year, from: sh.0) * 100 + cal.component(.month, from: sh.0)
+            if let i = out.firstIndex(where: { $0.key == k }) {
+                out[i] = MonthGroup(key: k, title: out[i].title, shifts: out[i].shifts + [sh])
+            } else {
+                out.append(MonthGroup(key: k, title: Fmt.date(sh.0, "MMMM yyyy"), shifts: [sh]))
+            }
+        }
+        return out
+    }
+
+    /// Seven chips for today and the next six days, coloured by shift code; today is ringed.
     private func weekStrip(_ me: Employee) -> some View {
         let cal = Calendar.current
         let days: [Date] = (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: Date()) }

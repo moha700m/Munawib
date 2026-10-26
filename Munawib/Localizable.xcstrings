@@ -8109,6 +8109,839 @@
           }
         }
       }
+    },
+    "%@ راحة/إجازة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ راحة/إجازة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ off/leave"
+          }
+        }
+      }
+    },
+    "%@ مناوبة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ مناوبة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ shifts"
+          }
+        }
+      }
+    },
+    "، %@ ساعة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "، %@ ساعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", %@ hours"
+          }
+        }
+      }
+    },
+    "إضاءة جيدة وبدون ظلال على الورقة.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضاءة جيدة وبدون ظلال على الورقة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good lighting, no shadows on the paper."
+          }
+        }
+      }
+    },
+    "اجعل الجدول يملأ الصورة وبشكل مستقيم.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اجعل الجدول يملأ الصورة وبشكل مستقيم."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill the frame with the roster and keep it straight."
+          }
+        }
+      }
+    },
+    "اختيار من الصور": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختيار من الصور"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose from Photos"
+          }
+        }
+      }
+    },
+    "اربط حسابك بموظف لعرض مناوباتك": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اربط حسابك بموظف لعرض مناوباتك"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link your account to an employee to see your shifts"
+          }
+        }
+      }
+    },
+    "اضغط على مناوبة لتغيير نوعها، أو اسحبها لحذفها.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اضغط على مناوبة لتغيير نوعها، أو اسحبها لحذفها."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a shift to change its type, or swipe to delete it."
+          }
+        }
+      }
+    },
+    "التعرف على النص يتم على جهازك": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التعرف على النص يتم على جهازك"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text recognition runs on your device"
+          }
+        }
+      }
+    },
+    "التقاط صورة الآن": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التقاط صورة الآن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take a photo now"
+          }
+        }
+      }
+    },
+    "الرموز المفهومة: D / E / N / R / L / C، نهاري، مسائي، ليلي، راحة، إجازة، والأوقات مثل 7-7.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرموز المفهومة: D / E / N / R / L / C، نهاري، مسائي، ليلي، راحة، إجازة، والأوقات مثل 7-7."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Understood codes: D / E / N / R / L / C, day, evening, night, off, leave, and times like 7-7."
+          }
+        }
+      }
+    },
+    "الشهر": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الشهر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        }
+      }
+    },
+    "القادمة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "القادمة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up next"
+          }
+        }
+      }
+    },
+    "المناوبات المقروءة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المناوبات المقروءة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shifts read"
+          }
+        }
+      }
+    },
+    "اليوم: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اليوم: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today: %@"
+          }
+        }
+      }
+    },
+    "اليوم: لا شيء مسجّل": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اليوم: لا شيء مسجّل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today: nothing scheduled"
+          }
+        }
+      }
+    },
+    "بداية المسائي: %@:00": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بداية المسائي: %@:00"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evening starts: %@:00"
+          }
+        }
+      }
+    },
+    "تحقّق من التاريخ": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحقّق من التاريخ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "check the date"
+          }
+        }
+      }
+    },
+    "تنتهي بعد": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تنتهي بعد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ends in"
+          }
+        }
+      }
+    },
+    "تُحفظ على هذا الجهاز وتظهر في «مناوباتي» ومدار يومك.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تُحفظ على هذا الجهاز وتظهر في «مناوباتي» ومدار يومك."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved on this device and shown in My Shifts and your daily orbit."
+          }
+        }
+      }
+    },
+    "جدول القسم": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جدول القسم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Department roster"
+          }
+        }
+      }
+    },
+    "جرّب صورة أوضح، أو تأكد أن التواريخ والرموز ظاهرة.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جرّب صورة أوضح، أو تأكد أن التواريخ والرموز ظاهرة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try a clearer photo, or make sure the dates and codes are visible."
+          }
+        }
+      }
+    },
+    "حفظ %@ مناوبة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ %@ مناوبة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save %@ shifts"
+          }
+        }
+      }
+    },
+    "حفظ مناوبة واحدة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ مناوبة واحدة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save 1 shift"
+          }
+        }
+      }
+    },
+    "حوّل الورقة إلى مناوبات": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حوّل الورقة إلى مناوبات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn the paper into shifts"
+          }
+        }
+      }
+    },
+    "ساعة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ساعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "h"
+          }
+        }
+      }
+    },
+    "ستظهر هنا بعد رفع الجدول أو تصوير الجدول الورقي.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ستظهر هنا بعد رفع الجدول أو تصوير الجدول الورقي."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "They will appear here after a roster is uploaded or you photograph the paper roster."
+          }
+        }
+      }
+    },
+    "صفك في الجدول": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صفك في الجدول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your row in the table"
+          }
+        }
+      }
+    },
+    "صورة أخرى": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صورة أخرى"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another photo"
+          }
+        }
+      }
+    },
+    "صورة الجدول": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صورة الجدول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roster photo"
+          }
+        }
+      }
+    },
+    "صورة من الكاميرا": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صورة من الكاميرا"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera photo"
+          }
+        }
+      }
+    },
+    "صوّر الجدول الورقي": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صوّر الجدول الورقي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photograph the paper roster"
+          }
+        }
+      }
+    },
+    "صوّر الجدول الورقي لإضافتها": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صوّر الجدول الورقي لإضافتها"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photograph the paper roster to add them"
+          }
+        }
+      }
+    },
+    "قرأنا %@ مناوبة من الصورة – راجعها": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قرأنا %@ مناوبة من الصورة – راجعها"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We read %@ shifts from the photo – review them"
+          }
+        }
+      }
+    },
+    "قراءة الجدول من صورة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قراءة الجدول من صورة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roster read from photo"
+          }
+        }
+      }
+    },
+    "كل مناوباتي": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل مناوباتي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All my shifts"
+          }
+        }
+      }
+    },
+    "لا توجد مناوبات قادمة. صوّر الجدول الورقي أو انتظر رفع جدول القسم.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد مناوبات قادمة. صوّر الجدول الورقي أو انتظر رفع جدول القسم."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No upcoming shifts. Photograph the paper roster or wait for the department roster."
+          }
+        }
+      }
+    },
+    "للحصول على أفضل قراءة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "للحصول على أفضل قراءة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For the best read"
+          }
+        }
+      }
+    },
+    "لم نقرأ مناوبات من الصورة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم نقرأ مناوبات من الصورة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We could not read any shifts from the photo"
+          }
+        }
+      }
+    },
+    "لم يتم ربط حسابك بموظف، لذلك لا يمكن حفظ المناوبات لك.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يتم ربط حسابك بموظف، لذلك لا يمكن حفظ المناوبات لك."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account is not linked to an employee, so the shifts cannot be saved for you."
+          }
+        }
+      }
+    },
+    "مدار": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مدار"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orbit"
+          }
+        }
+      }
+    },
+    "مدار يومك": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مدار يومك"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your day’s orbit"
+          }
+        }
+      }
+    },
+    "مسائي": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسائي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evening"
+          }
+        }
+      }
+    },
+    "ملف PDF أو صورة من الملفات": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملف PDF أو صورة من الملفات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF or image from Files"
+          }
+        }
+      }
+    },
+    "مناوبة واحدة": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مناوبة واحدة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 shift"
+          }
+        }
+      }
+    },
+    "نقرأ التواريخ وأنواع المناوبات من الصورة (عربي وإنجليزي) ونعرضها لك للمراجعة قبل الحفظ. لا تُرسل الصورة خارج جهازك.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نقرأ التواريخ وأنواع المناوبات من الصورة (عربي وإنجليزي) ونعرضها لك للمراجعة قبل الحفظ. لا تُرسل الصورة خارج جهازك."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We read the dates and shift types from the photo (Arabic and English) and show them for review before saving. The photo never leaves your device."
+          }
+        }
+      }
+    },
+    "نقرأ التواريخ والمناوبات من الصورة ونعرضها لك للمراجعة قبل الحفظ.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نقرأ التواريخ والمناوبات من الصورة ونعرضها لك للمراجعة قبل الحفظ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We read the dates and shifts from the photo and show them for review before saving."
+          }
+        }
+      }
+    },
+    "نقرأ الصورة…": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نقرأ الصورة…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading the photo…"
+          }
+        }
+      }
+    },
+    "يتطلب حسابًا": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتطلب حسابًا"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs an account"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
