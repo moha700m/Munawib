@@ -8942,6 +8942,23 @@
           }
         }
       }
+    },
+    "الحلقة الخارجية صباحًا والداخلية مساءً": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحلقة الخارجية صباحًا والداخلية مساءً"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outer ring is AM, inner ring is PM"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
