@@ -20,7 +20,7 @@ struct DSFieldChrome: ViewModifier {
             .padding(.horizontal, DS.m)
             .frame(minHeight: 54)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous).stroke(.quaternary))
+            .overlay(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous).stroke(Theme.border, lineWidth: 1))
     }
 }
 extension View { func dsFieldChrome() -> some View { modifier(DSFieldChrome()) } }
@@ -107,43 +107,157 @@ struct Skeleton: View {
     }
 }
 
-/// Prominent "today / next shift" card used on home & my shifts.
-struct TodayShiftCard: View {
+// MARK: - Bento grid
+
+/// Bento grid metrics: a 4-column grid with 82pt rows and 10pt gutters (mirrors the design mock).
+enum Bento {
+    static let row: CGFloat = 82
+    static let gap: CGFloat = 10
+    static let padding: CGFloat = 12
+    static func height(_ rows: Int) -> CGFloat { row * CGFloat(rows) + gap * CGFloat(max(0, rows - 1)) }
+    static func span(_ n: Int, col: CGFloat) -> CGFloat { col * CGFloat(n) + gap * CGFloat(max(0, n - 1)) }
+
+    static let value = Font.system(size: 26, weight: .heavy, design: .rounded)
+    static let small = Font.system(size: 18, weight: .heavy, design: .rounded)
+    static let hero = Font.system(size: 48, weight: .heavy, design: .rounded)
+    static let heroLarge = Font.system(size: 56, weight: .heavy, design: .rounded)
+}
+
+enum BentoStyle {
+    case light, dark, green, danger
+    var background: Color {
+        switch self { case .light: return Theme.card; case .dark: return Theme.tileDark; case .green: return Theme.primary; case .danger: return Theme.dangerSoft }
+    }
+    var border: Color {
+        switch self { case .light: return Theme.border; case .danger: return Theme.dangerBorder; case .dark, .green: return .clear }
+    }
+    var foreground: Color {
+        switch self { case .light, .danger: return Theme.ink; case .dark, .green: return .white }
+    }
+    var caption: Color {
+        switch self { case .light, .danger: return Theme.muted; case .dark: return Theme.slate; case .green: return Theme.primaryPale }
+    }
+}
+
+struct BentoTileModifier: ViewModifier {
+    let style: BentoStyle
+    var rows: Int?
+    func body(content: Content) -> some View {
+        content
+            .padding(Bento.padding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(height: rows.map(Bento.height))
+            .foregroundStyle(style.foreground)
+            .background(style.background, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(style.border, lineWidth: 1))
+    }
+}
+
+extension View {
+    /// Wraps content in a bento tile. `rows` fixes the height to the grid; omit for intrinsic height.
+    func bentoTile(_ style: BentoStyle = .light, rows: Int? = nil) -> some View { modifier(BentoTileModifier(style: style, rows: rows)) }
+    func bentoCaption(_ style: BentoStyle = .light) -> some View { font(.caption).foregroundStyle(style.caption).lineLimit(1).minimumScaleFactor(0.8) }
+}
+
+/// One horizontal band of the grid. Hands the content a column unit width so tiles can span 1–4 columns.
+struct BentoRow<Content: View>: View {
+    var rows: Int = 1
+    @ViewBuilder let content: (CGFloat) -> Content
+    var body: some View {
+        GeometryReader { geo in
+            let col = max(0, (geo.size.width - 3 * Bento.gap) / 4)
+            HStack(spacing: Bento.gap) { content(col) }
+        }
+        .frame(height: Bento.height(rows))
+    }
+}
+
+/// Caption-over-number tile.
+struct BentoStat: View {
+    let caption: String
+    let value: String
+    var footnote: String? = nil
+    var style: BentoStyle = .light
+    var valueFont: Font = Bento.value
+    var valueColor: Color? = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(caption).bentoCaption(style)
+            Text(value).font(valueFont).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                .foregroundStyle(valueColor ?? style.foreground)
+            if let footnote {
+                Spacer(minLength: 0)
+                Text(footnote).bentoCaption(style)
+            }
+        }
+        .bentoTile(style)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct BentoPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Icon + bold label action tile (green = primary action, light = secondary).
+struct BentoAction: View {
+    let title: String
+    let symbol: String
+    var style: BentoStyle = .light
+    var subtitle: String? = nil
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).accessibilityHidden(true)
+                Spacer(minLength: 0)
+                Text(title).font(.subheadline.weight(.heavy)).lineLimit(2).minimumScaleFactor(0.75).multilineTextAlignment(.leading)
+                if let subtitle { Text(subtitle).bentoCaption(style) }
+            }
+            .bentoTile(style)
+        }
+        .buttonStyle(BentoPressStyle())
+    }
+}
+
+// MARK: - Shifts hero
+
+/// Navy hero with the mint countdown to the next shift (or time left on the current one). Refreshes every minute.
+struct NextShiftHero: View {
     @Environment(AppStore.self) private var store
     var body: some View {
         if let me = store.myEmployee {
-            let shifts = store.upcomingShifts(for: me.id)
-            let now = Date()
-            let current = shifts.first { $0.0 <= now && now < $0.0.addingTimeInterval(Double(store.data.settings.shiftLength) * 3600) }
-            let next = current ?? shifts.first { $0.0 > now }
-            VStack(alignment: .leading, spacing: DS.m) {
-                HStack {
-                    Label(current != nil ? L("مناوبتك الآن") : L("مناوبتك القادمة"), systemImage: current != nil ? "dot.radiowaves.left.and.right" : "clock")
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
-                    Spacer()
-                    Text(me.name).font(.caption).foregroundStyle(.white.opacity(0.8))
-                }
-                if let n = next {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(n.1.title).font(.title.bold())
-                            Text(Fmt.date(n.0, "EEEE d MMMM · h:mm a")).font(.subheadline)
+            TimelineView(.periodic(from: .now, by: 60)) { ctx in
+                let now = ctx.date
+                let shifts = store.upcomingShifts(for: me.id)
+                let len = Double(store.data.settings.shiftLength) * 3600
+                let current = shifts.first { $0.0 <= now && now < $0.0.addingTimeInterval(len) }
+                let next = current ?? shifts.first { $0.0 > now }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(current != nil ? L("مناوبتك الآن · تنتهي بعد") : L("المناوبة القادمة بعد")).bentoCaption(.dark)
+                    if let n = next {
+                        let cd = Countdown.parts(until: current != nil ? n.0.addingTimeInterval(len) : n.0, from: now)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(cd.value).font(Bento.heroLarge).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                            if let u = cd.unit { Text(u).font(.title3.bold()) }
                         }
-                        Spacer()
-                        Image(systemName: n.1 == .night ? "moon.stars.fill" : "sun.max.fill").font(.system(size: 38)).symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(Theme.primaryLight)
+                        Spacer(minLength: 0)
+                        Text("\(n.1.title) · \(Fmt.date(n.0, "EEEE d MMMM")) · \(Fmt.date(n.0, "h:mm a"))")
+                            .font(.caption).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.8)
+                    } else {
+                        Spacer(minLength: 0)
+                        Text(L("لا توجد مناوبات قادمة")).font(.title3.bold())
                     }
-                    if current == nil {
-                        HStack(spacing: 6) { Text(L("يبدأ خلال")); Text(n.0, style: .relative).monospacedDigit().bold() }.font(.callout)
-                    }
-                } else {
-                    Text(L("لا توجد مناوبات قادمة")).font(.title3.bold())
                 }
+                .bentoTile(.dark, rows: 2)
             }
-            .foregroundStyle(.white)
-            .padding(DS.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(LinearGradient(colors: [Theme.primary, Theme.navy], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: DS.radiusL, style: .continuous))
-            .shadow(color: Theme.primary.opacity(0.25), radius: 14, y: 6)
             .accessibilityElement(children: .combine)
         }
     }
