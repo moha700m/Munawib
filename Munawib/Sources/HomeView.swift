@@ -186,7 +186,7 @@ struct HomeView: View {
 
     var body: some View {
         VStack(spacing: Bento.gap) {
-            DialHero().entry(0)
+            MasarHero().entry(0)
             statTiles.entry(1)
             photoCard.entry(2)
             if session.syncing && session.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }

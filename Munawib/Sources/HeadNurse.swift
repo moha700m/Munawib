@@ -30,7 +30,7 @@ struct HeadNurseDashboard: View {
                     ShareLink(item: info) { Label(L("مشاركة"), systemImage: "square.and.arrow.up") }
                 }.card()
             }
-            DialHero(compact: true).entry(0)
+            MasarHero(compact: true).entry(0)
             DepartmentBento(screen: $screen, sheet: $sheet).entry(1)
             BentoRow { col in
                 BentoStat(caption: L("تغطية اليوم"), value: "D\(today.day) · N\(today.night)", footnote: L("الحد الأدنى D%1$@ · N%2$@", "\(minD)", "\(minN)"), valueFont: Bento.small)

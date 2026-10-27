@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       set: { description: "store or review", default: store }
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/screenshots.yml' ]
 jobs:
   shots:
     strategy:
@@ -39,7 +42,7 @@ jobs:
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
-          xcrun simctl ui "$UDID" appearance light || true
+          xcrun simctl ui "$UDID" appearance dark || true
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/Munawib.app
           mkdir -p shots
           shoot() { name=$1; shift; xcrun simctl terminate "$UDID" com.mohlab.munawib || true
@@ -60,15 +63,16 @@ jobs:
             shoot a11_roster -demo -screen roster
             shoot a12_dashboard -demo -screen dashboard
             shoot a13_myshifts -demo -screen myShifts
-            xcrun simctl ui "$UDID" appearance dark
             shoot a14_home_dark -demo -screen home
             shoot a15_login_dark -auth login
           else
-            shoot 01_dashboard -demo -screen dashboard
-            shoot 02_roster -demo -screen roster
-            shoot 03_myShifts -demo -screen myShifts
-            shoot 04_reports -demo -screen reports
-            shoot 05_alerts -demo -screen alerts
+            WAIT=8 shoot 01_home -demo -screen home
+            WAIT=8 shoot 02_myShifts -demo -screen myShifts
+            shoot 03_roster -demo -screen roster
+            WAIT=8 shoot 04_dashboard -demo -screen dashboard
+            shoot 05_reports -demo -screen reports
+            shoot 06_settings -demo -hospitalInfo -screen settings
+            shoot 07_login -auth login
           fi
           sips -g pixelWidth -g pixelHeight shots/*.png
       - uses: actions/upload-artifact@v4

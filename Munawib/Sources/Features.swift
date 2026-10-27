@@ -283,7 +283,7 @@ struct MyShiftsView: View {
             if let me = store.myEmployee {
                 let shifts = store.upcomingShifts(for: me.id)
                 let s = store.data.settings
-                DialHero(compact: true).entry(0)
+                MasarHero(compact: true).entry(0)
                 weekStrip(me).entry(1)
                 BentoRow { col in
                     BentoStat(caption: L("ساعات الشهر"), value: "\(store.rosterHours(for: me.id))")

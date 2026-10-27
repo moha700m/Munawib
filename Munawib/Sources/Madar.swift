@@ -1,166 +1,74 @@
 import SwiftUI
 
-// MARK: - 12-hour dial
+// MARK: - «مسار» timeline hero
 
-/// One coloured band on the dial, in hours of the day (0…24); may wrap past midnight.
-struct DialArc: Identifiable {
-    let code: ShiftCode
-    let start: Double
-    let length: Double
-    var emphasized: Bool = false
-    var id: String { "\(code.rawValue)-\(start)-\(emphasized)" }
+/// One row of today's timeline: a shift window (day / evening / night), the "now" marker, or tomorrow's first window.
+struct MasarRow: Identifiable {
+    enum Kind { case shift, now, tomorrow }
+    let id: String
+    let kind: Kind
+    let time: Date
+    let title: String
+    let color: Color
+    /// Trailing status: «خلصت», «بعد 02:22», «بكرة», …
+    let status: String?
+    /// Window already over → drawn dimmed.
+    let past: Bool
+    /// The signed-in user's next shift → drawn larger.
+    let emphasized: Bool
 }
 
-/// A normal 12-hour clock face (12 at the top, hours clockwise) with two concentric tracks:
-/// the outer track is the morning half of the day (ص, 00:00–12:00) and the inner track the
-/// afternoon/night half (م, 12:00–24:00). A 12-hour shift therefore reads as one spiral — day
-/// starts on the outer track at 5 and ends on the inner track at 5 — so AM/PM is never ambiguous.
-/// The emphasized arc (current or next shift) draws itself once on first appearance.
-struct MadarDial<Center: View>: View {
-    let arcs: [DialArc]
-    let now: Date
-    var size: CGFloat = 250
-    var lineWidth: CGFloat = 13
-    @ViewBuilder let center: () -> Center
-
-    @State private var progress: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduce
-    @Environment(\.layoutDirection) private var direction
-
-    private let trackGap: CGFloat = 4
-
-    /// One piece of an arc on a single track, as fractions of the 12-hour circle.
-    private struct Piece: Identifiable {
-        let id: Int
-        let track: Int      // 0 = outer (AM), 1 = inner (PM)
-        let from: CGFloat
-        let to: CGFloat
-    }
-
-    private var outerRadius: CGFloat { size / 2 - lineWidth / 2 }
-    private var innerRadius: CGFloat { outerRadius - lineWidth - trackGap }
-    private var tickRadius: CGFloat { innerRadius - lineWidth / 2 - 8 }
-    private var labelRadius: CGFloat { tickRadius - 8 }
-
-    var body: some View {
-        ZStack {
-            track(radius: outerRadius)
-            track(radius: innerRadius)
-            ForEach(arcs.filter { !$0.emphasized }) { arc in band(arc, drawn: 1) }
-            ForEach(arcs.filter(\.emphasized)) { arc in band(arc, drawn: progress) }
-            ticks
-            hourLabels
-            periodBadge(radius: outerRadius, pm: false)
-            periodBadge(radius: innerRadius, pm: true)
-            nowMarker
-            center()
-                .environment(\.layoutDirection, direction)
-                .frame(width: (labelRadius - 10) * 2)
+/// Builds the rows from the shift settings and the user's codes for today / tomorrow. Pure, so it can be reasoned about
+/// without a view: windows are ordered by start hour, the "now" marker is inserted chronologically and tomorrow's first
+/// window closes the list.
+enum MasarTimeline {
+    static func rows(now: Date, settings s: AppSettings, todayCode: ShiftCode?, tomorrowCode: ShiftCode?, next: (Date, ShiftCode)?, calendar cal: Calendar = .current) -> [MasarRow] {
+        let len = Double(s.shiftLength) * 3600
+        let windows: [(ShiftCode, Int)] = [(.day, s.dayStartHour), (.evening, s.eveningStart), (.night, s.nightStartHour)].sorted { $0.1 < $1.1 }
+        let dayStart = cal.startOfDay(for: now)
+        var out: [MasarRow] = []
+        for (code, hour) in windows {
+            guard let start = cal.date(byAdding: .hour, value: hour, to: dayStart) else { continue }
+            let end = start.addingTimeInterval(len)
+            let mine = todayCode == code
+            let isNext = next.map { cal.isDate($0.0, equalTo: start, toGranularity: .minute) } ?? false
+            let status: String?
+            if end <= now { status = L("خلصت") }
+            else if start <= now {
+                status = mine ? L("تنتهي بعد %@", countdown(until: end, from: now)) : L("الآن")
+            } else if isNext {
+                status = L("بعد %@", countdown(until: start, from: now))
+            } else { status = nil }
+            out.append(MasarRow(id: "today-\(code.rawValue)", kind: .shift, time: start, title: code.title, color: code.color, status: status, past: end <= now, emphasized: isNext))
         }
-        .frame(width: size, height: size)
-        .environment(\.layoutDirection, .leftToRight)
-        .onAppear {
-            guard progress < 1 else { return }
-            if reduce { progress = 1 } else { withAnimation(Motion.draw) { progress = 1 } }
+        out.append(MasarRow(id: "now", kind: .now, time: now, title: L("الحين"), color: Theme.ink, status: nil, past: false, emphasized: false))
+        if let first = windows.first, let tomorrow = cal.date(byAdding: .day, value: 1, to: dayStart), let start = cal.date(byAdding: .hour, value: first.1, to: tomorrow) {
+            let code = tomorrowCode.flatMap { $0.isWorking || $0 == .empty ? nil : $0 }
+            let isNext = next.map { cal.isDate($0.0, equalTo: start, toGranularity: .minute) } ?? false
+            out.append(MasarRow(id: "tomorrow", kind: .tomorrow, time: start, title: code?.title ?? first.0.title, color: code?.color ?? first.0.color, status: L("بكرة"), past: false, emphasized: isNext))
         }
+        return out.sorted { $0.time < $1.time }
     }
 
-    // MARK: Pieces
-
-    private func track(radius: CGFloat) -> some View {
-        Circle().stroke(Theme.track, lineWidth: lineWidth).frame(width: radius * 2, height: radius * 2)
-    }
-
-    private var ticks: some View {
-        ForEach(0..<12, id: \.self) { h in
-            let major = h % 3 == 0
-            Capsule()
-                .fill(major ? Theme.muted : Theme.borderStrong)
-                .frame(width: major ? 2 : 1, height: major ? 7 : 5)
-                .offset(y: -tickRadius)
-                .rotationEffect(.degrees(Double(h) * 30))
-        }
-    }
-
-    private var hourLabels: some View {
-        ZStack {
-            Text("12").offset(y: -labelRadius)
-            Text("3").offset(x: labelRadius)
-            Text("6").offset(y: labelRadius)
-            Text("9").offset(x: -labelRadius)
-        }
-        .font(.caption2.weight(.semibold)).monospacedDigit()
-        .foregroundStyle(Theme.faint)
-    }
-
-    /// Small ص / م pill sitting on the track at the 11 o'clock position so each ring names its half of the day.
-    private func periodBadge(radius: CGFloat, pm: Bool) -> some View {
-        let f = DateFormatter(); f.locale = Fmt.ar
-        let text = pm ? f.pmSymbol ?? "PM" : f.amSymbol ?? "AM"
-        return Text(text)
-            .font(.system(size: 9, weight: .bold)).monospacedDigit()
-            .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 5).padding(.vertical, 2)
-            .background(Theme.card, in: Capsule())
-            .overlay(Capsule().stroke(Theme.borderStrong, lineWidth: 1))
-            .offset(y: -radius)
-            .rotationEffect(.degrees(-45))
-            .accessibilityHidden(true)
-    }
-
-    private var nowMarker: some View {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: now)
-        let hour = Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60
-        let pm = hour >= 12
-        return Circle()
-            .fill(Theme.ink)
-            .frame(width: 9, height: 9)
-            .overlay(Circle().stroke(Theme.background, lineWidth: 2))
-            .offset(y: -(pm ? innerRadius : outerRadius))
-            .rotationEffect(.degrees(hour.truncatingRemainder(dividingBy: 12) * 30))
-    }
-
-    /// Splits a window of `length` hours starting at `start` (24h clock) into pieces on the AM / PM tracks,
-    /// cutting at noon and midnight. Pieces are in time order so a partially `drawn` arc grows forward.
-    private func pieces(start: Double, length: Double) -> [Piece] {
-        var out: [Piece] = []
-        var s = start.truncatingRemainder(dividingBy: 24); if s < 0 { s += 24 }
-        var remaining = min(max(0, length), 24)
-        var i = 0
-        while remaining > 0.0001 && i < 6 {
-            let track = Int(floor(s / 12)) % 2
-            let trackEnd = Double(track + 1) * 12
-            let e = min(trackEnd, s + remaining)
-            out.append(Piece(id: i, track: track, from: CGFloat((s - Double(track) * 12) / 12), to: CGFloat((e - Double(track) * 12) / 12)))
-            remaining -= (e - s)
-            s = e >= 24 ? 0 : e
-            i += 1
-        }
-        return out
-    }
-
-    @ViewBuilder private func band(_ arc: DialArc, drawn: CGFloat) -> some View {
-        ForEach(pieces(start: arc.start, length: arc.length * Double(drawn))) { piece in
-            let r = piece.track == 0 ? outerRadius : innerRadius
-            Circle()
-                .trim(from: piece.from, to: piece.to)
-                .stroke(arc.code.color.opacity(arc.emphasized ? 1 : 0.2),
-                        style: StrokeStyle(lineWidth: arc.emphasized ? lineWidth : lineWidth - 5, lineCap: .round))
-                .frame(width: r * 2, height: r * 2)
-                .rotationEffect(.degrees(-90))
-                .shadow(color: arc.emphasized ? arc.code.color.opacity(0.4) : .clear, radius: 8)
-        }
+    static func countdown(until target: Date, from now: Date) -> String {
+        let cd = Countdown.parts(until: target, from: now)
+        return cd.unit.map { "\(cd.value) \($0)" } ?? cd.value
     }
 }
 
-// MARK: - Dial hero
-
-/// «مدار يومك»: the dial with the countdown to the next shift (or time left on the current one) in the centre.
-/// Refreshes every minute; the countdown digits roll with a numeric content transition.
-struct DialHero: View {
+/// «مدار يومك» card in design D «مسار»: the next-shift countdown in the shift's colour, a vertical timeline of today's
+/// windows with a "now" marker, and three legend chips with the shift time ranges. Refreshes every minute.
+struct MasarHero: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduce
     var compact = false
+
+    @State private var drawn: CGFloat = 0
+
+    private var rowHeight: CGFloat { compact ? 46 : 54 }
+    private let timeWidth: CGFloat = 72
+    private let dotWidth: CGFloat = 26
+    private let gap: CGFloat = 14
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { ctx in
@@ -171,68 +79,157 @@ struct DialHero: View {
             let shifts = me.map { store.upcomingShifts(for: $0.id) } ?? []
             let current = shifts.first { $0.0 <= now && now < $0.0.addingTimeInterval(len) }
             let next = current ?? shifts.first { $0.0 > now }
-            let focus = next?.1
-            let todayCode = me.map { store.code(for: $0.id, on: now) } ?? .empty
-            let arcs: [DialArc] = [
-                DialArc(code: .day, start: Double(s.dayStartHour), length: Double(s.shiftLength), emphasized: focus == .day),
-                DialArc(code: .evening, start: Double(s.eveningStart), length: Double(s.shiftLength), emphasized: focus == .evening),
-                DialArc(code: .night, start: Double(s.nightStartHour), length: Double(s.shiftLength), emphasized: focus == .night),
-            ]
-            let cd = next.map { Countdown.parts(until: current != nil ? $0.0.addingTimeInterval(len) : $0.0, from: now) }
+            let cal = Calendar.current
+            let todayCode = me.map { store.code(for: $0.id, on: now) }
+            let tomorrowCode = me.flatMap { e in cal.date(byAdding: .day, value: 1, to: now).map { store.code(for: e.id, on: $0) } }
+            let rows = MasarTimeline.rows(now: now, settings: s, todayCode: todayCode, tomorrowCode: tomorrowCode, next: next, calendar: cal)
 
-            VStack(spacing: 14) {
-                MadarDial(arcs: arcs, now: now, size: compact ? 216 : 250) {
-                    VStack(spacing: 4) {
-                        if let n = next, let cd {
-                            Text(current != nil ? L("تنتهي بعد") : L("المناوبة القادمة بعد"))
-                                .font(.caption).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.7)
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(cd.value)
-                                    .font(.system(size: compact ? 34 : 42, weight: .heavy, design: .rounded))
-                                    .monospacedDigit()
-                                    .foregroundStyle(n.1.color)
-                                    .contentTransition(reduce ? ContentTransition.identity : ContentTransition.numericText(countsDown: true))
-                                    .animation(Motion.quick(reduce), value: cd.value)
-                                if let u = cd.unit { Text(u).font(.headline).foregroundStyle(Theme.muted) }
-                            }
-                            .lineLimit(1).minimumScaleFactor(0.5)
-                            Text("\(n.1.title) · \(Fmt.date(n.0, "EEEE d"))")
-                                .font(.caption.weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(1).minimumScaleFactor(0.7)
-                            Text(Fmt.range(start: Calendar.current.component(.hour, from: n.0), length: s.shiftLength))
-                                .font(.caption2).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.7)
-                        } else if me == nil {
-                            Image(systemName: "person.crop.circle.badge.questionmark").font(.title2).foregroundStyle(Theme.muted)
-                            Text(L("اربط حسابك بموظف لعرض مناوباتك")).font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
-                        } else {
-                            Image(systemName: "moon.zzz").font(.title2).foregroundStyle(Theme.muted)
-                            Text(L("لا توجد مناوبات قادمة")).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink).multilineTextAlignment(.center)
-                            Text(L("صوّر الجدول الورقي لإضافتها")).font(.caption2).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
-                        }
-                    }
+            VStack(spacing: Bento.gap) {
+                VStack(alignment: .leading, spacing: compact ? 10 : 14) {
+                    header(now: now, me: me, next: next, current: current != nil, length: len)
+                    timeline(rows)
                 }
+                .card()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(L("مدار يومك"))
-                .accessibilityHint(L("الحلقة الخارجية صباحًا والداخلية مساءً"))
-                .accessibilityValue(accessibilityValue(next: next, current: current != nil, cd: cd))
+                .accessibilityValue(accessibilityValue(next: next, current: current != nil, now: now, length: len, rows: rows))
 
-                HStack(spacing: 14) {
-                    CodeDot(code: .day); CodeDot(code: .evening); CodeDot(code: .night)
-                    Spacer(minLength: 0)
-                    if me != nil {
-                        Text(todayCode == .empty ? L("اليوم: لا شيء مسجّل") : L("اليوم: %@", todayCode.title))
-                            .font(.caption.weight(.semibold)).foregroundStyle(todayCode.isWorking ? todayCode.color : Theme.muted)
-                            .lineLimit(1).minimumScaleFactor(0.7)
-                    }
-                }
+                legend(s)
             }
-            .padding(.vertical, 6)
-            .card()
+            .onAppear {
+                guard drawn < 1 else { return }
+                if reduce { drawn = 1 } else { withAnimation(Motion.draw) { drawn = 1 } }
+            }
         }
     }
 
-    private func accessibilityValue(next: (Date, ShiftCode)?, current: Bool, cd: (value: String, unit: String?)?) -> String {
-        guard let next, let cd else { return L("لا توجد مناوبات قادمة") }
-        let when = cd.unit.map { "\(cd.value) \($0)" } ?? cd.value
-        return "\(current ? L("تنتهي بعد") : L("المناوبة القادمة بعد")) \(when)، \(next.1.title) \(Fmt.date(next.0, "EEEE d"))"
+    // MARK: Header
+
+    @ViewBuilder private func header(now: Date, me: Employee?, next: (Date, ShiftCode)?, current: Bool, length: TimeInterval) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(current ? L("مناوبتك الآن · تنتهي بعد") : L("المناوبة الجاية")).font(.caption).foregroundStyle(Theme.muted)
+            if let next {
+                let cd = Countdown.parts(until: current ? next.0.addingTimeInterval(length) : next.0, from: now)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(cd.value)
+                            .font(.system(size: compact ? 50 : 64, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(next.1.color)
+                            .contentTransition(reduce ? ContentTransition.identity : ContentTransition.numericText(countsDown: true))
+                            .animation(Motion.quick(reduce), value: cd.value)
+                        if let u = cd.unit { Text(u).font(.title3.bold()).foregroundStyle(Theme.muted) }
+                    }
+                    .environment(\.layoutDirection, .leftToRight)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(next.1.title).font(.title3.weight(.heavy)).foregroundStyle(Theme.ink)
+                        Text(Fmt.date(next.0, "EEEE d")).font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                }
+                .lineLimit(1).minimumScaleFactor(0.5)
+            } else if me == nil {
+                Label(L("اربط حسابك بموظف لعرض مناوباتك"), systemImage: "person.crop.circle.badge.questionmark")
+                    .font(.headline).foregroundStyle(Theme.ink).padding(.vertical, 8)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("لا توجد مناوبات قادمة")).font(.title3.weight(.heavy)).foregroundStyle(Theme.ink)
+                    Text(L("صوّر الجدول الورقي لإضافتها")).font(.caption).foregroundStyle(Theme.muted)
+                }
+                .padding(.vertical, 6)
+            }
+        }
+    }
+
+    // MARK: Timeline
+
+    private func timeline(_ rows: [MasarRow]) -> some View {
+        let lineColors = rows.filter { $0.kind != .now }.map(\.color)
+        return VStack(spacing: 0) {
+            ForEach(rows) { row in
+                HStack(spacing: gap) {
+                    Text(Fmt.date(row.time, "h:mm a"))
+                        .font(.subheadline.weight(.medium)).monospacedDigit()
+                        .foregroundStyle(row.kind == .now ? Theme.ink : Theme.muted)
+                        .frame(width: timeWidth, alignment: .leading)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    ZStack {
+                        if row.kind == .now {
+                            Circle().fill(Theme.ink.opacity(0.18)).frame(width: dotWidth, height: dotWidth)
+                            Circle().fill(Theme.ink).frame(width: 14, height: 14)
+                        } else {
+                            Circle().fill(row.color.opacity(0.2)).frame(width: dotWidth, height: dotWidth)
+                            Circle().fill(row.color).frame(width: row.emphasized ? 14 : 11, height: row.emphasized ? 14 : 11)
+                        }
+                    }
+                    .frame(width: dotWidth, height: dotWidth)
+                    Text(row.title)
+                        .font(row.emphasized ? .title3.weight(.heavy) : .body.weight(row.kind == .now ? .heavy : .bold))
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 6)
+                    if let status = row.status {
+                        Text(status).font(.caption).foregroundStyle(row.emphasized ? row.color : Theme.muted).monospacedDigit()
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .contentTransition(reduce ? ContentTransition.identity : ContentTransition.numericText(countsDown: true))
+                            .animation(Motion.quick(reduce), value: status)
+                    }
+                }
+                .frame(height: rowHeight)
+                .opacity(row.past ? 0.4 : 1)
+            }
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(LinearGradient(colors: lineColors.isEmpty ? [Theme.border] : lineColors, startPoint: .top, endPoint: .bottom))
+                .frame(width: 3)
+                .scaleEffect(y: drawn, anchor: .top)
+                .padding(.vertical, rowHeight / 2)
+                .padding(.leading, timeWidth + gap + (dotWidth - 3) / 2)
+        }
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Legend
+
+    private func legend(_ s: AppSettings) -> some View {
+        HStack(spacing: Bento.gap) {
+            ForEach([ShiftCode.day, .evening, .night], id: \.self) { code in
+                if let h = s.startHour(code) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Circle().fill(code.color).frame(width: 9, height: 9)
+                            Text(code.title).font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Text("\(Fmt.date(hourDate(h), "h a")) – \(Fmt.date(hourDate(h + s.shiftLength), "h a"))")
+                            .font(.subheadline.weight(.bold)).monospacedDigit().foregroundStyle(Theme.ink)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.border, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    private func hourDate(_ h: Int) -> Date {
+        Calendar.current.date(bySettingHour: ((h % 24) + 24) % 24, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+
+    private func accessibilityValue(next: (Date, ShiftCode)?, current: Bool, now: Date, length: TimeInterval, rows: [MasarRow]) -> String {
+        var parts: [String] = []
+        if let next {
+            let when = MasarTimeline.countdown(until: current ? next.0.addingTimeInterval(length) : next.0, from: now)
+            parts.append("\(current ? L("تنتهي بعد") : L("المناوبة الجاية")) \(when)، \(next.1.title) \(Fmt.date(next.0, "EEEE d"))")
+        } else {
+            parts.append(L("لا توجد مناوبات قادمة"))
+        }
+        for r in rows where r.kind != .now {
+            parts.append("\(Fmt.date(r.time, "h:mm a")) \(r.title)\(r.status.map { " \($0)" } ?? "")")
+        }
+        return parts.joined(separator: "، ")
     }
 }

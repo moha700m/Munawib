@@ -226,15 +226,3 @@ struct BentoAction: View {
         .buttonStyle(BentoPressStyle())
     }
 }
-
-/// Small coloured legend dot + label used under the dial and in lists.
-struct CodeDot: View {
-    let code: ShiftCode
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(code.color).frame(width: 8, height: 8)
-            Text(code.title).font(.caption).foregroundStyle(Theme.muted)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
