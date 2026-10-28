@@ -126,19 +126,22 @@ struct AuthView: View {
     }
 
     private var header: some View {
-        VStack(spacing: DS.s) {
-            Image(systemName: "circle.circle")
-                .font(.system(size: 34, weight: .semibold)).foregroundStyle(Theme.onPrimary)
-                .frame(width: 76, height: 76)
-                .background(Theme.primary, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: Theme.primary.opacity(0.35), radius: 14, y: 6)
-                .accessibilityHidden(true)
-            Text(L("مِناوب")).font(.largeTitle.bold())
-            Text(L("سجّل الدخول لمتابعة مناوباتك وتنبيهات فريقك")).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: DS.s) {
+            HStack(spacing: 6) {
+                ForEach([ShiftCode.day, .evening, .night], id: \.self) { c in
+                    Text(c.label).font(Brand.font(15, .bold, relativeTo: .subheadline)).foregroundStyle(c.chipForeground)
+                        .frame(width: 44, height: 44).background(c.chipBackground, in: Capsule())
+                }
+            }
+            .accessibilityHidden(true)
+            Text(L("جدول الجناح\nفي جيبك")).font(Brand.font(40, .bold, relativeTo: .largeTitle)).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(L("مِناوب: جدول مناوبات المستشفى، تبديل الورديات، وتنبيه قبل كل مناوبة.")).font(Brand.font(16, relativeTo: .subheadline)).foregroundStyle(Theme.muted)
             if UserDefaults.standard.string(forKey: "serverURL") != nil {
                 Label(L("خادم المستشفى الداخلي"), systemImage: "server.rack").font(.caption).foregroundStyle(Theme.primary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, DS.xl)
     }
 

@@ -186,9 +186,11 @@ struct HomeView: View {
 
     var body: some View {
         VStack(spacing: Bento.gap) {
-            MasarHero().entry(0)
-            statTiles.entry(1)
-            photoCard.entry(2)
+            TodayShiftTicket().entry(0)
+            DutyWeekStrip().entry(1)
+            OnCallSwapRow(screen: $screen).entry(2)
+            statTiles.entry(3)
+            photoCard.entry(4)
             if session.syncing && session.remote == nil { VStack(alignment: .leading, spacing: 10) { Skeleton(height: 22); Skeleton(); Skeleton() }.card() }
             upcomingPreview.entry(3)
             if session.isManager {
@@ -267,12 +269,12 @@ struct HomeView: View {
             let shifts = Array(store.upcomingShifts(for: me.id).filter { $0.0 > Date() }.prefix(3))
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(L("القادمة")).font(.title3.weight(.heavy)).foregroundStyle(Theme.ink)
+                    Text(L("المناوبات الجاية")).font(Brand.font(20, .bold, relativeTo: .title3)).foregroundStyle(Theme.ink)
                     Spacer()
                     Button(L("كل مناوباتي")) { screen = .myShifts }.font(.subheadline.weight(.semibold)).foregroundStyle(Theme.primary)
                 }
                 if shifts.isEmpty {
-                    Text(L("لا توجد مناوبات قادمة. صوّر الجدول الورقي أو انتظر رفع جدول القسم.")).font(.footnote).foregroundStyle(Theme.muted)
+                    WardEmptyState(title: L("جدولك فاضي"), symbol: "calendar.badge.plus", message: L("صوّر جدول القسم الورقي أو انتظر رئيسة التمريض ترفعه، وبنرتّب لك المناوبات والتنبيهات."))
                 }
                 ForEach(shifts, id: \.0) { sh in
                     ShiftRow(date: sh.0, code: sh.1, hours: store.data.settings.shiftLength)

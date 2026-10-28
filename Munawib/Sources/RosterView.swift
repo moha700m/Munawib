@@ -123,10 +123,10 @@ struct CodeCell: View {
                 Button("\(opt.label) — \(opt.title)") { store.setCode(opt, emp: emp, day: day) }
             }
         } label: {
-            Text(c.label).font(.footnote.bold())
-                .frame(width: 40, height: 40)
-                .foregroundStyle(c.color)
-                .background(c.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            Text(c.label).font(Brand.font(14, .bold, relativeTo: .footnote))
+                .frame(width: 44, height: 44)
+                .foregroundStyle(c.chipForeground)
+                .background(c.chipBackground, in: Capsule())
         } primaryAction: {
             store.cycle(emp: emp, day: day)
             UISelectionFeedbackGenerator().selectionChanged()

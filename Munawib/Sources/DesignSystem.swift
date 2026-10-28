@@ -111,16 +111,16 @@ struct Skeleton: View {
 
 /// Bento grid metrics: a 4-column grid with 82pt rows and 10pt gutters (mirrors the design mock).
 enum Bento {
-    static let row: CGFloat = 82
-    static let gap: CGFloat = 10
-    static let padding: CGFloat = 12
+    static let row: CGFloat = 88
+    static let gap: CGFloat = 8
+    static let padding: CGFloat = 14
     static func height(_ rows: Int) -> CGFloat { row * CGFloat(rows) + gap * CGFloat(max(0, rows - 1)) }
     static func span(_ n: Int, col: CGFloat) -> CGFloat { col * CGFloat(n) + gap * CGFloat(max(0, n - 1)) }
 
-    static let value = Font.system(size: 26, weight: .heavy, design: .rounded)
-    static let small = Font.system(size: 18, weight: .heavy, design: .rounded)
-    static let hero = Font.system(size: 48, weight: .heavy, design: .rounded)
-    static let heroLarge = Font.system(size: 56, weight: .heavy, design: .rounded)
+    static let value = Brand.font(28, .bold, relativeTo: .title)
+    static let small = Brand.font(18, .bold, relativeTo: .headline)
+    static let hero = Brand.font(52, .bold, relativeTo: .largeTitle)
+    static let heroLarge = Brand.font(60, .bold, relativeTo: .largeTitle)
 }
 
 /// Tile styles: `light` = base card, `dark` = raised card, `green` = amber accent (primary action), `danger` = coral tint.
@@ -133,7 +133,7 @@ enum BentoStyle {
         switch self { case .light: return Theme.border; case .dark: return Theme.borderStrong; case .danger: return Theme.dangerBorder; case .green: return .clear }
     }
     var foreground: Color {
-        switch self { case .light, .danger, .dark: return Theme.ink; case .green: return Theme.onPrimary }
+        switch self { case .light, .danger: return Theme.ink; case .dark, .green: return Theme.onPrimary }
     }
     var caption: Color {
         switch self { case .light, .danger: return Theme.muted; case .dark: return Theme.slate; case .green: return Theme.primaryPale }
@@ -158,7 +158,7 @@ struct BentoTileModifier: ViewModifier {
 extension View {
     /// Wraps content in a bento tile. `rows` fixes the height to the grid; omit for intrinsic height.
     func bentoTile(_ style: BentoStyle = .light, rows: Int? = nil) -> some View { modifier(BentoTileModifier(style: style, rows: rows)) }
-    func bentoCaption(_ style: BentoStyle = .light) -> some View { font(.caption).foregroundStyle(style.caption).lineLimit(1).minimumScaleFactor(0.8) }
+    func bentoCaption(_ style: BentoStyle = .light) -> some View { font(Brand.font(12, .semibold, relativeTo: .caption)).foregroundStyle(style.caption).lineLimit(1).minimumScaleFactor(0.8) }
 }
 
 /// One horizontal band of the grid. Hands the content a column unit width so tiles can span 1–4 columns.
@@ -218,7 +218,7 @@ struct BentoAction: View {
             VStack(alignment: .leading, spacing: 4) {
                 Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).accessibilityHidden(true)
                 Spacer(minLength: 0)
-                Text(title).font(.subheadline.weight(.heavy)).lineLimit(2).minimumScaleFactor(0.75).multilineTextAlignment(.leading)
+                Text(title).font(Brand.font(15, .bold, relativeTo: .subheadline)).lineLimit(2).minimumScaleFactor(0.75).multilineTextAlignment(.leading)
                 if let subtitle { Text(subtitle).bentoCaption(style) }
             }
             .bentoTile(style)

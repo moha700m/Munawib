@@ -1,48 +1,63 @@
 import SwiftUI
 
-/// «مدار» visual system: near-black surfaces, amber for day shifts, indigo for night, pink for evening.
-/// The app is dark-only (see `preferredColorScheme(.dark)` on the root), so the tokens are constants.
+/// «جناح» (Ward) visual system — v3 redesign: warm paper surfaces, scrubs-teal primary, saffron day / coral evening /
+/// navy night. Light-only (see `preferredColorScheme(.light)` on the root), so the tokens are constants.
 enum Theme {
-    // Shift hues (also the accent system: amber is the primary action colour)
-    static let amber = Color(hex: 0xFBBF24)
-    static let indigo = Color(hex: 0x6366F1)
-    static let pink = Color(hex: 0xEC4899)
+    // Shift hues
+    static let amber = Color(hex: 0xC97F0A)   // day: saffron
+    static let indigo = Color(hex: 0x23315E)  // night: ward navy
+    static let pink = Color(hex: 0xD9480F)    // evening: coral
 
-    static let primary = amber
-    static let onPrimary = Color(hex: 0x0E0F12)           // text on amber
-    static let primaryLight = Color(hex: 0xFDE68A)        // amber highlight (digits, rings)
-    static let primaryPale = Color.black.opacity(0.62)    // captions on amber tiles
+    static let primary = Color(hex: 0x0E6B5C)             // scrubs teal
+    static let onPrimary = Color.white
+    static let primaryLight = Color(hex: 0x2FA58C)
+    static let primaryPale = Color.white.opacity(0.78)    // captions on teal tiles
 
     // Surfaces
-    static let background = Color(hex: 0x0E0F12)
-    static let card = Color(hex: 0x16181D)
-    static let surfaceRaised = Color(hex: 0x1D2027)
-    static let border = Color.white.opacity(0.08)
-    static let borderStrong = Color.white.opacity(0.14)
-    static let track = Color.white.opacity(0.06)
+    static let background = Color(hex: 0xF3F0E8)
+    static let card = Color.white
+    static let surfaceRaised = Color(hex: 0xE7EFEC)
+    static let border = Color(hex: 0x0B2A27).opacity(0.08)
+    static let borderStrong = Color(hex: 0x0B2A27).opacity(0.16)
+    static let track = Color(hex: 0x0B2A27).opacity(0.07)
 
     // Text
-    static let ink = Color(hex: 0xF4F4F5)
-    static let muted = Color(hex: 0x9CA3AF)
-    static let faint = Color(hex: 0x6B7280)
+    static let ink = Color(hex: 0x0B2A27)
+    static let muted = Color(hex: 0x4B5D5A)
+    static let faint = Color(hex: 0x7A8885)
 
     // Status
-    static let success = Color(hex: 0x34D399)
-    static let coral = Color(hex: 0xF87171)
-    static let danger = Color(hex: 0xF87171)
-    static let dangerSoft = Color(hex: 0xF87171).opacity(0.14)
-    static let dangerBorder = Color(hex: 0xF87171).opacity(0.35)
+    static let success = Color(hex: 0x15803D)
+    static let coral = Color(hex: 0xC2362B)
+    static let danger = Color(hex: 0xC2362B)
+    static let dangerSoft = Color(hex: 0xC2362B).opacity(0.09)
+    static let dangerBorder = Color(hex: 0xC2362B).opacity(0.30)
 
     // Legacy names kept for the shared tiles / drawer
-    static let navy = Color(hex: 0x16181D)
-    static let navySoft = Color(hex: 0x1D2027)
-    static let slate = Color(hex: 0x9CA3AF)
-    static let tileDark = Color(hex: 0x1D2027)
-    static let chipRest = Color(hex: 0x2A2E37)
+    static let navy = Color(hex: 0x0B2A27)
+    static let navySoft = Color(hex: 0x163B37)
+    static let slate = Color(hex: 0xB7C9C4)
+    static let tileDark = Color(hex: 0x0B2A27)   // "pine" hero tiles
+    static let chipRest = Color(hex: 0xE2E6E3)
 
-    static let radius: CGFloat = 20
+    static let radius: CGFloat = 26
 
-    static func dynamic(light: UInt32, dark: UInt32) -> Color { Color(hex: dark) }
+    static func dynamic(light: UInt32, dark: UInt32) -> Color { Color(hex: light) }
+}
+
+/// IBM Plex Sans Arabic (bundled, OFL) with Dynamic Type scaling.
+enum Brand {
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
+        let name: String
+        switch weight {
+        case .bold, .heavy, .black: name = "IBMPlexSansArabic-Bold"
+        case .semibold, .medium: name = "IBMPlexSansArabic-SemiBold"
+        default: name = "IBMPlexSansArabic-Regular"
+        }
+        return .custom(name, size: size, relativeTo: style)
+    }
+    static let body = font(17)
+    static let display = font(34, .bold, relativeTo: .largeTitle)
 }
 
 extension UIColor {
@@ -132,9 +147,9 @@ extension ShiftCode {
         case .day: return Theme.amber
         case .evening: return Theme.pink
         case .night: return Theme.indigo
-        case .rest: return Color(hex: 0x64748B)
-        case .leave: return Color(hex: 0x0EA5E9)
-        case .course: return Color(hex: 0x14B8A6)
+        case .rest: return Color(hex: 0x5B6B68)
+        case .leave: return Color(hex: 0x0369A1)
+        case .course: return Color(hex: 0x7C3AED)
         case .empty: return Theme.faint
         }
     }
@@ -145,7 +160,7 @@ extension ShiftCode {
         default: return color
         }
     }
-    var chipForeground: Color { self == .day ? Theme.onPrimary : .white }
+    var chipForeground: Color { (self == .rest || self == .empty) ? Theme.ink : .white }
     var symbol: String {
         switch self {
         case .day: return "sun.max.fill"

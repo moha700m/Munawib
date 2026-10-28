@@ -42,7 +42,8 @@ struct MunawibApp: App {
                 .environment(\.locale, language.locale)
                 .id(language.lang)
                 .tint(Theme.primary)
-                .preferredColorScheme(.dark)
+                .font(Brand.body)
+                .preferredColorScheme(.light)
         }
     }
 }
@@ -53,7 +54,7 @@ enum Screen: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dashboard: return L("لوحة رئيسة التمريض")
-        case .home: return L("مدار يومك")
+        case .home: return L("ورديتي")
         case .roster: return L("جداول المناوبات")
         case .myShifts: return L("مناوباتي")
         case .requests: return L("الإجازات والتبديل")

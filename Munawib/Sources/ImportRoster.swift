@@ -249,7 +249,7 @@ struct PhotoImportSheet: View {
             }
         }
         .environment(\.layoutDirection, LanguageManager.shared.direction)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
 
     // MARK: Steps

@@ -3,6 +3,7 @@
 <plist version="1.0"><dict>
 <key>CFBundleDevelopmentRegion</key><string>ar</string>
 <key>CFBundleLocalizations</key><array><string>ar</string><string>en</string></array>
+<key>UIAppFonts</key><array><string>IBMPlexSansArabic-Regular.ttf</string><string>IBMPlexSansArabic-SemiBold.ttf</string><string>IBMPlexSansArabic-Bold.ttf</string></array>
 <key>CFBundleDisplayName</key><string>مِناوب</string>
 <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
 <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>

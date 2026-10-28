@@ -312,7 +312,7 @@ struct MyShiftsView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack { Text(L("مناوباتي القادمة")).font(.title3.weight(.heavy)); Spacer(); Text("\(shifts.count)").font(.headline).monospacedDigit().foregroundStyle(Theme.muted) }
-                    if shifts.isEmpty { ContentUnavailableView(L("لا توجد مناوبات"), systemImage: "calendar.badge.exclamationmark", description: Text(L("ستظهر هنا بعد رفع الجدول أو تصوير الجدول الورقي."))) }
+                    if shifts.isEmpty { WardEmptyState(title: L("لا توجد مناوبات"), symbol: "calendar.badge.exclamationmark", message: L("ستظهر هنا بعد رفع الجدول أو تصوير الجدول الورقي.")) }
                     ForEach(monthGroups(shifts.prefix(60)), id: \.key) { group in
                         HStack {
                             Text(group.title).font(.caption.weight(.bold)).foregroundStyle(Theme.muted)
