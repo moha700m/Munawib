@@ -34,3 +34,6 @@ Description lead: "Munawib turns your ward's paper roster into a live schedule: 
 
 Screenshots plan (light theme, 5): 1) today's shift ticket, 2) scan paper roster, 3) ward roster capsules, 4) swap board/requests, 5) head-nurse coverage.
 App Review notes: explain it is the only shift app on the account; remove/never submit `manawb-ios-wrapper`.
+
+## Previews
+Real simulator renders from the `screenshots.yml` run on this branch (iPhone): previews/01_home.png, 03_roster.png, 04_dashboard.png, 07_login.png. Tab bar still labels home «مدار» (to rename).
