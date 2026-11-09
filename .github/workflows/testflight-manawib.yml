@@ -21,14 +21,18 @@ jobs:
         with:
           xcode-version: latest-stable
       - run: brew install xcodegen && xcodegen generate
-      - name: Point Info.plist URL type at the new bundle ID
+      - name: Point Info.plist at manawib bundle + iPhone-only
         run: |
           # CFBundleURLName is hardcoded to com.mohlab.munawib in source; patch
           # only this checkout so the manawib build claims its own URL type.
           # URL scheme kept as munawib (deep-link compatibility); no extensions
           # or app groups exist to remap.
           /usr/libexec/PlistBuddy -c "Set :CFBundleURLTypes:0:CFBundleURLName $BUNDLE_ID" Munawib/Info.plist
+          # Drop iPad orientations so ASC treats this as iPhone-only (no iPad
+          # 13" screenshot requirement). Old munawib workflow is unaffected.
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" Munawib/Info.plist || true
           /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" Munawib/Info.plist
+          /usr/libexec/PlistBuddy -c "Print" Munawib/Info.plist | grep -i orientation || true
       - name: Install API key
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
@@ -37,7 +41,7 @@ jobs:
           KEY=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
           printf '%s\n' "$ASC_KEY_P8" > "$KEY"
           echo "KEY_PATH=$KEY" >> $GITHUB_ENV
-      - name: Archive (unsigned) as com.mohlab.manawib
+      - name: Archive (unsigned) as com.mohlab.manawib (iPhone-only)
         run: |
           set -o pipefail
           xcodebuild archive -project Munawib.xcodeproj -scheme Munawib -configuration Release \
@@ -46,16 +50,29 @@ jobs:
             PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             MARKETING_VERSION=$MARKETING_VERSION \
+            TARGETED_DEVICE_FAMILY=1 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tee /tmp/archive.log | tail -100
-      - name: Verify embedded bundle id
+      - name: Verify embedded bundle id + iPhone-only
         run: |
           APP=build/Munawib.xcarchive/Products/Applications/Munawib.app
           BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           VER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
           BLD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")
-          echo "bundled id=$BID version=$VER build=$BLD"
+          FAMILY=$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist" 2>/dev/null || true)
+          echo "bundled id=$BID version=$VER build=$BLD UIDeviceFamily=$FAMILY"
           test "$BID" = "$BUNDLE_ID"
           test "$VER" = "$MARKETING_VERSION"
+          # UIDeviceFamily should be only iPhone (1), not [1, 2]
+          echo "$FAMILY" | grep -q 'Array'
+          echo "$FAMILY" | grep -q '1'
+          if echo "$FAMILY" | grep -q '2'; then
+            echo "ERROR: still includes iPad (device family 2)" >&2
+            exit 1
+          fi
+          if /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations~ipad' "$APP/Info.plist" >/dev/null 2>&1; then
+            echo "ERROR: iPad orientations still present" >&2
+            exit 1
+          fi
       - name: Embed entitlements (aps-environment) for cloud signing
         run: |
           APP=build/Munawib.xcarchive/Products/Applications/Munawib.app
